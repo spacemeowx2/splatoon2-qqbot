@@ -1,0 +1,3 @@
+# qqbot
+
+`npm install --production`

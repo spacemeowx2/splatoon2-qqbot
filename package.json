@@ -1,0 +1,32 @@
+{
+  "name": "qqbot",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "dev": "nodemon -L",
+    "build": "tsc -p .",
+    "prod": "ts-node ./src/index.ts",
+    "fetch-splatoon2": "ts-node ./scripts/fetch-splatoon2.ts",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "ssh://git@git.imspace.cn:2222/space/qqbot.git"
+  },
+  "author": "",
+  "license": "",
+  "dependencies": {
+    "@types/node": "^10.10.3",
+    "@types/ws": "^6.0.1",
+    "axios": "^0.18.0",
+    "cq-websocket": "^1.6.0",
+    "moment": "^2.22.2",
+    "nodemon": "^1.18.4",
+    "ts-node": "^7.0.1",
+    "typescript": "^3.0.3"
+  },
+  "devDependencies": {
+    "canvas": "^1.6.12"
+  }
+}

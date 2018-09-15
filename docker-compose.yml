@@ -1,0 +1,14 @@
+version: "2"
+
+services:
+  dev:
+    build: .
+    volumes:
+      - ".:/code"
+    command: npm run dev
+    environment:
+      - CQ_HOST=${CQ_HOST}
+      - CQ_ACCESS_TOKEN=${CQ_ACCESS_TOKEN}
+      - TSBOT_ADMIN=${TSBOT_ADMIN}
+      - TULING123_TOKEN=${TULING123_TOKEN}
+      - BOT_DEBUG=true
