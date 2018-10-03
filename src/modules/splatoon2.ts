@@ -83,7 +83,7 @@ interface CoopStage {
   name: string
 }
 interface CoopWeapon {
-  id: string,
+  id?: string,
   image: string,
   name: string
 }
@@ -93,8 +93,9 @@ interface CoopSchedule {
   end_time: number
   stage: CoopStage
   weapons: {
-    id: string,
-    weapon: CoopWeapon
+    id: string
+    weapon?: CoopWeapon
+    coop_special_weapon?: CoopWeapon
   }[]
 }
 
@@ -216,7 +217,14 @@ export class Splatoon2 extends BaseBotModule {
 
     let weaponXY = [5 + 120 + 5, top + 25]
     for (let i = 0; i < 4; i++) {
-      const w = s.weapons[i].weapon
+      let w = s.weapons[i].weapon
+      if (!w) {
+        w = s.weapons[i].coop_special_weapon
+      }
+      if (!w) {
+        console.error(s.weapons[i])
+        throw new Error()
+      }
       await this.drawImage(ctx, w.image, weaponXY[0] + xy[i][0], weaponXY[1] + xy[i][1], 30, 30)
     }
   }
