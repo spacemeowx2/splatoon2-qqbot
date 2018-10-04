@@ -117,6 +117,7 @@ export class Splatoon2 extends BaseBotModule {
   coopCache: CoopSchedules | null = null
   cacheImg: Map<string, Buffer> = new Map()
   groupRandom: Map<number, RandomContext> = new Map()
+  name = 'Splatoon2'
 
   init (bot: TSBot, bus: TSBotEventBus) {
     super.init(bot, bus)

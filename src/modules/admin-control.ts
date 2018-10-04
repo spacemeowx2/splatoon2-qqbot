@@ -14,6 +14,7 @@ type ExcludeExpireAt<T> = {
 }
 
 export class AdminControl extends BaseBotModule {
+  name = '管理模块'
   adminQQ: number[] = []
   requestMap: Map<number, PendingRequest> = new Map()
 

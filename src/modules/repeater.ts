@@ -10,6 +10,7 @@ const sleep = (ms: number) => new Promise<void>(res => setTimeout(res, ms))
 
 export class Repeater extends BaseBotModule {
   map: Map<number, RepeatInfo> = new Map()
+  name = '复读机'
 
   init (bot: TSBot, bus: TSBotEventBus) {
     super.init(bot, bus)

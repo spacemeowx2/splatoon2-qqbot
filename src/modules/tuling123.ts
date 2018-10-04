@@ -2,6 +2,8 @@ import { BaseBotModule, TSBot, TSBotEventBus, BotMessageEvent } from '../interfa
 import axios from 'axios'
 
 export class Tuling123 extends BaseBotModule {
+  name = '智障对话(图灵123)'
+
   constructor (private apiKey: string) {
     super()
   }

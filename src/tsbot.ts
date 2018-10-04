@@ -1,5 +1,5 @@
 import CQWebSocket, { CQEvent, CQWebSocketOption, CQRequestOptions } from 'cq-websocket'
-import { BotModule } from './interface'
+import { BotModule, BotModuleFactory } from './interface'
 const DebugPrefix = 'debug '
 const IsDebug = !!process.env.BOT_DEBUG
 
@@ -61,25 +61,23 @@ export type BotListener<T extends BotPostType> = (event: BotEventMap[T]) => Prom
 export type MessageListener = BotListener<BotPostType.Message>
 export type RequestListener = BotListener<BotPostType.Request>
 
-export type BotFilter<T extends BotPostType> = (event: BotEventMap[T], next?: (() => boolean)) => boolean
+export type BotFilter<T extends BotPostType> = (event: BotEventMap[T]) => boolean
 export type MessageFilter = BotFilter<BotPostType.Message>
 export type RequestFilter = BotFilter<BotPostType.Request>
 export type AnyFilter = BotFilter<BotPostType.Any>
 export interface FilterListener<T extends BotPostType> {
   filters: BotFilter<T>[]
   listener: BotListener<T>
+  module: BotModule
 }
 export type MessageFilterListener = FilterListener<BotPostType.Message>
 export type RequestFilterListener = FilterListener<BotPostType.Request>
 export type MessageModifier = (message: string) => string
+
 export class TSBotEventBus {
-  private msgListeners: MessageFilterListener[] = []
-  private reqListeners: RequestFilterListener[] = []
-  msgModifier: MessageModifier[] = []
-  constructor (bot: CQWebSocket, private globalFilters: BotFilter<BotPostType.Any>[] = []) {
-    bot.on('message', (e, c) => this.onMessage(e, c))
-    bot.on('request', (c) => this.onRequest(c))
+  constructor (public bus: BotEventBus, private module: BotModule) {
   }
+
   registerAtMe (listener: MessageListener) {
     this.registerMessage(
       [this.atMeFilter],
@@ -99,16 +97,10 @@ export class TSBotEventBus {
     )
   }
   registerMessage (filters: MessageFilter[], listener: MessageListener) {
-    this.msgListeners.push({
-      filters: [...this.globalFilters, ...filters],
-      listener
-    })
+    this.bus.registerMessage(this.module, filters, listener)
   }
   registerRequest (filters: RequestFilter[], listener: RequestListener) {
-    this.reqListeners.push({
-      filters: [...this.globalFilters, ...filters],
-      listener
-    })
+    this.bus.registerRequest(this.module, filters, listener)
   }
 
   privateFilter: MessageFilter = (e) => {
@@ -147,6 +139,30 @@ export class TSBotEventBus {
   groupTypeFilter: MessageFilter = (e) => {
     return e.messageType === BotMessageType.Group
   }
+}
+class BotEventBus {
+  private msgListeners: MessageFilterListener[] = []
+  private reqListeners: RequestFilterListener[] = []
+  msgModifier: MessageModifier[] = []
+  constructor (bot: CQWebSocket, private globalFilters: BotFilter<BotPostType.Any>[] = []) {
+    bot.on('message', (e, c) => this.onMessage(e, c))
+    bot.on('request', (c) => this.onRequest(c))
+  }
+  registerMessage (m: BotModule, filters: MessageFilter[], listener: MessageListener) {
+    this.msgListeners.push({
+      filters: [...this.globalFilters, ...filters],
+      listener,
+      module: m
+    })
+  }
+  registerRequest (m: BotModule, filters: RequestFilter[], listener: RequestListener) {
+    this.reqListeners.push({
+      filters: [...this.globalFilters, ...filters],
+      listener,
+      module: m
+    })
+  }
+
   protected runFilter<T extends BotPostType> (e: BotEventMap[T], f: BotFilter<T>[], def = true) {
     const runner = (i: number): boolean => {
       if (i > f.length - 1) {
@@ -216,24 +232,18 @@ export class TSBotEventBus {
   }
 }
 
-export class TSBot {
+export class TSBot implements BotModule {
   private bot: CQWebSocket
-  private modules: BotModule[] = []
-  private bus: TSBotEventBus
+  private modules: BotModule[] = [this]
+  private bus: BotEventBus
   isPro: boolean = false
+  name = '核心模块'
 
   constructor (opt?: Partial<CQWebSocketOption>) {
     let globalFilters: AnyFilter[] = []
     globalFilters.push(this.debugFilter)
     const bot = new CQWebSocket(opt)
-    this.bus = new TSBotEventBus(bot, globalFilters)
-    if (IsDebug) {
-      this.bus.registerMessage([], e => {
-        if (e.message === '') {
-          return 'Debug mode is on'
-        }
-      })
-    }
+    this.bus = new BotEventBus(bot, globalFilters)
 
     bot.on('socket.connecting', function (wsType, attempts) {
       console.log('嘗試第 %d 次連線 _(:з」∠)_', attempts)
@@ -248,7 +258,7 @@ export class TSBot {
     this.bot = bot
   }
   connect () {
-    this.init()
+    this.initModules()
     this.bot.connect()
   }
   registerModule (mod: BotModule) {
@@ -276,6 +286,25 @@ export class TSBot {
 
   atStr (qq: number | string) {
     return `[CQ:at,qq=${qq}]`
+  }
+
+  getDeps () {
+    return {}
+  }
+  setDeps () {
+  }
+  init (bot: TSBot, bus: TSBotEventBus) {
+    if (IsDebug) {
+      bus.registerMessage([], e => {
+        if (e.message === '') {
+          return 'Debug mode is on'
+        }
+      })
+    }
+    bus.registerMessage([bus.cmdFilter, this.helpFilter], e => this.onHelp(e))
+  }
+  help () {
+    return ''
   }
 
   protected debugFilter (e: BotEvent) {
@@ -308,10 +337,9 @@ export class TSBot {
 
     return false
   }
-  protected init () {
-    this.bus.registerMessage([this.bus.cmdFilter, this.helpFilter], e => this.onHelp(e))
+  protected initModules () {
     for (let m of this.modules) {
-      m.init(this, this.bus)
+      m.init(this, new TSBotEventBus(this.bus, m))
     }
   }
   protected onHelp (e: BotMessageEvent) {

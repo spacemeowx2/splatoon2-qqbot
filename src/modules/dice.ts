@@ -2,6 +2,7 @@ import { BaseBotModule, TSBot, TSBotEventBus, BotMessageEvent, MessageFilter } f
 const diceRe = /^(\d+)d(\d+)$/
 
 export class Dice extends BaseBotModule {
+  name = '简单骰子'
 
   init (bot: TSBot, bus: TSBotEventBus) {
     super.init(bot, bus)
