@@ -61,7 +61,7 @@ export type BotListener<T extends BotPostType> = (event: BotEventMap[T]) => Prom
 export type MessageListener = BotListener<BotPostType.Message>
 export type RequestListener = BotListener<BotPostType.Request>
 
-export type BotFilter<T extends BotPostType> = (event: BotEventMap[T]) => boolean
+export type BotFilter<T extends BotPostType> = (event: BotEventMap[T], abort: (r: boolean) => void) => boolean
 export type MessageFilter = BotFilter<BotPostType.Message>
 export type RequestFilter = BotFilter<BotPostType.Request>
 export type AnyFilter = BotFilter<BotPostType.Any>
@@ -123,7 +123,7 @@ export class TSBotEventBus {
       return false
     }
   }
-  cmdFilter: MessageFilter = (e, next) => {
+  cmdFilter: MessageFilter = (e, abort) => {
     const atMe = `[CQ:at,qq=${e.selfId}]`
     const cmdPrefix = '.'
     if (e.message.includes(atMe)) {
@@ -163,24 +163,23 @@ class BotEventBus {
     })
   }
 
-  protected runFilter<T extends BotPostType> (e: BotEventMap[T], f: BotFilter<T>[], def = true) {
-    const runner = (i: number): boolean => {
-      if (i > f.length - 1) {
-        return def
+  protected runFilter<T extends BotPostType> (e: BotEventMap[T], filters: BotFilter<T>[], def = true) {
+    for (let f of filters) {
+      let isAbort = false
+      let abortResult: boolean
+      const abort = (r: boolean) => {
+        isAbort = true
+        abortResult = r
       }
-      let ranNext = false
-      const next = () => {
-        ranNext = true
-        return runner(i + 1)
+      const ret = f(e, abort)
+      if (isAbort) {
+        return abortResult!
       }
-      const ret = f[i](e, next)
-      if (ret && !ranNext) {
-        return next()
+      if (ret === false) {
+        return ret
       }
-      return ret
     }
-
-    return runner(0)
+    return def
   }
   protected async onMessage (e: CQEvent, c: Record<string, any>) {
     e.stopPropagation()
