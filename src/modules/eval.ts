@@ -3,6 +3,7 @@ import { BaseBotModule, TSBot, TSBotEventBus, BotMessageEvent, MessageFilter } f
 export class Eval extends BaseBotModule {
   id = 'eval'
   name = 'eval(任意代码执行)'
+  defaultEnable = false
 
   init (bot: TSBot, bus: TSBotEventBus) {
     super.init(bot, bus)

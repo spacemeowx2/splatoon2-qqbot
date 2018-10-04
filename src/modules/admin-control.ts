@@ -67,9 +67,6 @@ export class AdminControl extends BaseBotModule {
     try {
       let { message, userId } = e
 
-      {
-        return this.help(e)
-      }
     } catch (e) {
       console.error('err', e)
     }
@@ -106,7 +103,8 @@ export class AdminControl extends BaseBotModule {
   }
   help (e: BotMessageEvent) {
     if (e.messageType === BotMessageType.Private) {
-      return `以 '*' 开头的指令需要该群管理员权限 输入以下指令进行管理(不需输入花括号):
+      return `直接邀请机器人进群, 经过管理员审核后会加入.
+以 '*' 开头的指令需要该群管理员权限 输入以下指令进行管理(不需输入花括号):
   列出模块 {QQ群号}
 * 关闭模块 {QQ群号} {模块ID}
 * 开启模块 {QQ群号} {模块ID}`

@@ -61,7 +61,11 @@ export type BotListener<T extends BotPostType> = (event: BotEventMap[T]) => Prom
 export type MessageListener = BotListener<BotPostType.Message>
 export type RequestListener = BotListener<BotPostType.Request>
 
-export type BotFilter<T extends BotPostType> = (event: BotEventMap[T], abort: (r: boolean) => void) => boolean
+export type BotFilterContext = {
+  abort: (r: boolean) => void
+  module: BotModule
+}
+export type BotFilter<T extends BotPostType> = (event: BotEventMap[T], ctx?: BotFilterContext) => boolean
 export type MessageFilter = BotFilter<BotPostType.Message>
 export type RequestFilter = BotFilter<BotPostType.Request>
 export type AnyFilter = BotFilter<BotPostType.Any>
@@ -144,7 +148,7 @@ class BotEventBus {
   private msgListeners: MessageFilterListener[] = []
   private reqListeners: RequestFilterListener[] = []
   msgModifier: MessageModifier[] = []
-  constructor (bot: CQWebSocket, private globalFilters: BotFilter<BotPostType.Any>[] = []) {
+  constructor (bot: CQWebSocket, public globalFilters: BotFilter<BotPostType.Any>[] = []) {
     bot.on('message', (e, c) => this.onMessage(e, c))
     bot.on('request', (c) => this.onRequest(c))
   }
@@ -163,7 +167,8 @@ class BotEventBus {
     })
   }
 
-  protected runFilter<T extends BotPostType> (e: BotEventMap[T], filters: BotFilter<T>[], def = true) {
+  protected runFilter<T extends BotPostType> (e: BotEventMap[T], listener: FilterListener<T>, def = true) {
+    const { filters, module } = listener
     for (let f of filters) {
       let isAbort = false
       let abortResult: boolean
@@ -171,7 +176,11 @@ class BotEventBus {
         isAbort = true
         abortResult = r
       }
-      const ret = f(e, abort)
+      const ctx = {
+        abort,
+        module
+      }
+      const ret = f(e, ctx)
       if (isAbort) {
         return abortResult!
       }
@@ -190,7 +199,7 @@ class BotEventBus {
     try {
       for (let listener of this.msgListeners) {
         const e: BotMessageEvent = Object.assign({}, event)
-        if (this.runFilter(e, listener.filters)) {
+        if (this.runFilter(e, listener)) {
           ret = await listener.listener(e)
           if (typeof ret === 'string') {
             break
@@ -214,7 +223,7 @@ class BotEventBus {
   protected async onBotRequest<T extends BotPostType> (event: BotEventMap[T], listeners: FilterListener<T>[]) {
     for (let listener of listeners) {
       let e: BotEventMap[T] = Object.assign({}, event)
-      if (this.runFilter(e, listener.filters)) {
+      if (this.runFilter(e, listener)) {
         await listener.listener(e)
       }
     }
@@ -238,6 +247,7 @@ export class TSBot implements BotModule {
   isPro: boolean = false
   id = 'core'
   name = '核心模块'
+  defaultEnable = true
 
   constructor (opt?: Partial<CQWebSocketOption>) {
     let globalFilters: AnyFilter[] = []
@@ -302,6 +312,7 @@ export class TSBot implements BotModule {
       })
     }
     bus.registerMessage([bus.cmdFilter, this.helpFilter], e => this.onHelp(e))
+    bus.registerPrivate(e => this.onHelp(e))
   }
   help () {
     return ''
