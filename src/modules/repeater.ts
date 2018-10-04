@@ -9,6 +9,7 @@ interface RepeatInfo {
 const sleep = (ms: number) => new Promise<void>(res => setTimeout(res, ms))
 
 export class Repeater extends BaseBotModule {
+  id = 'repeater'
   map: Map<number, RepeatInfo> = new Map()
   name = '复读机'
 

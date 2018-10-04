@@ -1,6 +1,7 @@
 import { BaseBotModule, TSBot, TSBotEventBus, BotMessageEvent, MessageFilter } from '../interface'
 
 export class Eval extends BaseBotModule {
+  id = 'eval'
   name = 'eval(任意代码执行)'
 
   init (bot: TSBot, bus: TSBotEventBus) {
@@ -16,6 +17,6 @@ export class Eval extends BaseBotModule {
     }
   }
   help () {
-    return 'eval: .eval <命令>'
+    return '代码执行: .eval <命令>'
   }
 }

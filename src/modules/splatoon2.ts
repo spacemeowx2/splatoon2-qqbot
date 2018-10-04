@@ -1,4 +1,4 @@
-import { BaseBotModule, TSBot, TSBotEventBus, BotMessageEvent } from '../interface'
+import { BaseBotModule, TSBot, TSBotEventBus, BotMessageEvent, BotMessageType } from '../interface'
 import axios from 'axios'
 import Canvas, { Font, Image, CanvasNonStandard } from 'canvas'
 import path from 'path'
@@ -117,6 +117,7 @@ export class Splatoon2 extends BaseBotModule {
   coopCache: CoopSchedules | null = null
   cacheImg: Map<string, Buffer> = new Map()
   groupRandom: Map<number, RandomContext> = new Map()
+  id = 'splatoon2'
   name = 'Splatoon2'
 
   init (bot: TSBot, bus: TSBotEventBus) {
@@ -397,10 +398,12 @@ export class Splatoon2 extends BaseBotModule {
     return [canvas, ctx]
   }
   help (e: BotMessageEvent) {
-    return `Splatoon:
-当前地图: @bot 图
+    if (e.messageType === BotMessageType.Group) {
+      return `当前地图: @bot 图
 下张地图: @bot 下张图
 打工图: @bot 打工
 随机武器: .随机武器 (无需@)`
+    }
+    return ''
   }
 }

@@ -236,6 +236,7 @@ export class TSBot implements BotModule {
   private modules: BotModule[] = [this]
   private bus: BotEventBus
   isPro: boolean = false
+  id = 'core'
   name = '核心模块'
 
   constructor (opt?: Partial<CQWebSocketOption>) {
@@ -244,11 +245,11 @@ export class TSBot implements BotModule {
     const bot = new CQWebSocket(opt)
     this.bus = new BotEventBus(bot, globalFilters)
 
-    bot.on('socket.connecting', function (wsType, attempts) {
+    bot.on('socket.connecting', (wsType, attempts) => {
       console.log('嘗試第 %d 次連線 _(:з」∠)_', attempts)
-    }).on('socket.connect', function (wsType, sock, attempts) {
+    }).on('socket.connect', (wsType, sock, attempts) => {
       console.log('第 %d 次連線嘗試成功 ヽ(✿ﾟ▽ﾟ)ノ', attempts)
-    }).on('socket.failed', function (wsType, attempts) {
+    }).on('socket.failed', (wsType, attempts) => {
       console.log('第 %d 次連線嘗試失敗 。･ﾟ･(つд`ﾟ)･ﾟ･', attempts)
     }).on('socket.error', (type, err) => {
       console.error('socket.error', err.toString())
@@ -342,7 +343,12 @@ export class TSBot implements BotModule {
     }
   }
   protected onHelp (e: BotMessageEvent) {
-    return this.modules.map(m => m.help(e)).filter(s => s.length > 0).join('\n\n')
+    return this.modules.map(m => {
+      const h = m.help(e)
+      if (h.length > 0) {
+        return `${m.name}:\n${m.help(e)}`
+      }
+    }).filter(s => s).join('\n\n')
   }
 }
 

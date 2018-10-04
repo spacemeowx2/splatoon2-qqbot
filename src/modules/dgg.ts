@@ -1,6 +1,7 @@
 import { BaseBotModule, TSBot, TSBotEventBus, BotMessageEvent, MessageFilter } from '../interface'
 
 export class DingGG extends BaseBotModule {
+  id = 'dgg'
   name = '顶瓜瓜'
 
   init (bot: TSBot, bus: TSBotEventBus) {

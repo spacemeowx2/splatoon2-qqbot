@@ -1,7 +1,8 @@
-import { BaseBotModule, TSBot, TSBotEventBus, BotMessageEvent } from '../interface'
+import { BaseBotModule, TSBot, TSBotEventBus, BotMessageEvent, BotMessageType } from '../interface'
 import axios from 'axios'
 
 export class Tuling123 extends BaseBotModule {
+  id = 'tuling123'
   name = '智障对话(图灵123)'
 
   constructor (private apiKey: string) {
@@ -36,9 +37,12 @@ export class Tuling123 extends BaseBotModule {
     return `${this.bot.atStr(e.userId)} ${msg}`
   }
   help (e: BotMessageEvent) {
-    if (e.groupId === 240906453) {
-      return ''
+    if (e.messageType === BotMessageType.Group) {
+      if (e.groupId === 240906453) {
+        return ''
+      }
+      return '@bot "想说的话" (由 图灵123 提供 API )'
     }
-    return '智障对话: @bot "想说的话" (由 图灵123 提供 API )'
+    return ''
   }
 }

@@ -2,6 +2,7 @@ import { TSBot, TSBotEventBus, BotMessageEvent } from './tsbot'
 export * from './tsbot'
 
 export interface BotModule {
+  id: string
   name: string
   init (bot: TSBot, bus: TSBotEventBus): void
   getDeps (): Record<string, BotModuleFactory>
@@ -11,6 +12,7 @@ export interface BotModule {
 export type BotModuleFactory = { new (): BotModule }
 export abstract class BaseBotModule implements BotModule {
   protected bot!: TSBot
+  abstract id: string
   abstract name: string
   init (bot: TSBot, bus: TSBotEventBus) {
     this.bot = bot
