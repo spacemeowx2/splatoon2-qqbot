@@ -1,4 +1,4 @@
-import { TSBot, BaseBotModule, TSBotEventBus, BotMessageType } from '../interface'
+import { TSBot, BaseBotModule, TSBotEventBus, BotModuleInitContext, BotMessageType } from '../interface'
 import { BotMessageEvent, BotRequestEvent, BotRequestType, BotRequestSubType } from '../tsbot'
 
 const RequestTimeout = 30 * 60 * 1000 // 30min
@@ -19,8 +19,9 @@ export class AdminControl extends BaseBotModule {
   adminQQ: number[] = []
   requestMap: Map<number, PendingRequest> = new Map()
 
-  init (bot: TSBot, bus: TSBotEventBus) {
-    super.init(bot, bus)
+  init (ctx: BotModuleInitContext) {
+    super.init(ctx)
+    const { bus } = ctx
     bus.registerMessage([bus.privateFilter, this.adminFilter], e => this.onAdmin(e))
     bus.registerMessage([bus.privateFilter], e => this.onPrivate(e))
     bus.registerRequest([this.groupInviteFilter], e => this.onInvite(e))

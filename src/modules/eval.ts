@@ -1,12 +1,13 @@
-import { BaseBotModule, TSBot, TSBotEventBus, BotMessageEvent, MessageFilter } from '../interface'
+import { BaseBotModule, BotMessageEvent, BotModuleInitContext } from '../interface'
 
 export class Eval extends BaseBotModule {
   id = 'eval'
   name = 'eval(任意代码执行)'
   defaultEnable = false
 
-  init (bot: TSBot, bus: TSBotEventBus) {
-    super.init(bot, bus)
+  init (ctx: BotModuleInitContext) {
+    super.init(ctx)
+    const { bus } = ctx
     bus.registerMessage([bus.startsWithFilter('.eval ')], e => this.onMsg(e))
   }
   onMsg (e: BotMessageEvent) {

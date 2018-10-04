@@ -1,7 +1,9 @@
 import CQWebSocket, { CQEvent, CQWebSocketOption, CQRequestOptions } from 'cq-websocket'
-import { BotModule, BotModuleFactory } from './interface'
+import { BotModule, BotModuleFactory, BotModuleInitContext } from './interface'
+import { BotStorageService } from './storage'
 const DebugPrefix = 'debug '
 const IsDebug = !!process.env.BOT_DEBUG
+const ConfigPath = process.env.BOT_CONFIG_PATH || './config.json'
 
 export const enum BotPostType {
   Message = 'message',
@@ -244,6 +246,7 @@ export class TSBot implements BotModule {
   private bot: CQWebSocket
   private modules: BotModule[] = [this]
   private bus: BotEventBus
+  private storage: BotStorageService = new BotStorageService(ConfigPath)
   isPro: boolean = false
   id = 'core'
   name = '核心模块'
@@ -303,7 +306,8 @@ export class TSBot implements BotModule {
   }
   setDeps () {
   }
-  init (bot: TSBot, bus: TSBotEventBus) {
+  init (ctx: BotModuleInitContext) {
+    const { bus } = ctx
     if (IsDebug) {
       bus.registerMessage([], e => {
         if (e.message === '') {
@@ -349,8 +353,14 @@ export class TSBot implements BotModule {
     return false
   }
   protected initModules () {
+    const moduleStorage = this.storage.getChild('module')
     for (let m of this.modules) {
-      m.init(this, new TSBotEventBus(this.bus, m))
+      const ctx = {
+        bot: this,
+        bus: new TSBotEventBus(this.bus, m),
+        storage: moduleStorage.getChild(m.id)
+      }
+      m.init(ctx)
     }
   }
   protected onHelp (e: BotMessageEvent) {

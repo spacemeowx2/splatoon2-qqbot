@@ -1,11 +1,12 @@
-import { BaseBotModule, TSBot, TSBotEventBus, BotMessageEvent, MessageFilter } from '../interface'
+import { BaseBotModule, BotMessageEvent, BotModuleInitContext } from '../interface'
 
 export class DingGG extends BaseBotModule {
   id = 'dgg'
   name = '顶瓜瓜'
 
-  init (bot: TSBot, bus: TSBotEventBus) {
-    super.init(bot, bus)
+  init (ctx: BotModuleInitContext) {
+    super.init(ctx)
+    const { bus } = ctx
     bus.registerMessage([bus.atMeFilter], e => this.onMessage(e))
   }
   onMessage (e: BotMessageEvent) {

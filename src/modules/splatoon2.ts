@@ -1,4 +1,4 @@
-import { BaseBotModule, TSBot, TSBotEventBus, BotMessageEvent, BotMessageType } from '../interface'
+import { BaseBotModule, BotMessageEvent, BotMessageType, BotModuleInitContext } from '../interface'
 import axios from 'axios'
 import Canvas, { Font, Image, CanvasNonStandard } from 'canvas'
 import path from 'path'
@@ -120,8 +120,9 @@ export class Splatoon2 extends BaseBotModule {
   id = 'splatoon2'
   name = 'Splatoon2'
 
-  init (bot: TSBot, bus: TSBotEventBus) {
-    super.init(bot, bus)
+  init (ctx: BotModuleInitContext) {
+    super.init(ctx)
+    const { bot, bus } = ctx
 
     bus.registerMessage([bus.atMeFilter], e => this.onStage(e))
     bus.registerMessage([bus.groupTypeFilter], e => this.onRandom(e))

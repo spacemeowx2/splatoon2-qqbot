@@ -1,4 +1,4 @@
-import { BaseBotModule, TSBot, TSBotEventBus, BotMessageEvent } from '../interface'
+import { BaseBotModule, BotMessageEvent, BotModuleInitContext } from '../interface'
 
 interface RepeatInfo {
   lastMessage: string,
@@ -13,8 +13,9 @@ export class Repeater extends BaseBotModule {
   map: Map<number, RepeatInfo> = new Map()
   name = '复读机'
 
-  init (bot: TSBot, bus: TSBotEventBus) {
-    super.init(bot, bus)
+  init (ctx: BotModuleInitContext) {
+    super.init(ctx)
+    const { bus } = ctx
     bus.registerMessage([bus.groupTypeFilter], e => this.onMsg(e))
   }
   onMsg (e: BotMessageEvent) {

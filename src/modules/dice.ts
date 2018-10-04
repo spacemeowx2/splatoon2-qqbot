@@ -1,12 +1,13 @@
-import { BaseBotModule, TSBot, TSBotEventBus, BotMessageEvent, MessageFilter } from '../interface'
+import { BaseBotModule, BotMessageEvent, BotModuleInitContext } from '../interface'
 const diceRe = /^(\d+)d(\d+)$/
 
 export class Dice extends BaseBotModule {
   id = 'simple_dice'
   name = '简单骰子'
 
-  init (bot: TSBot, bus: TSBotEventBus) {
-    super.init(bot, bus)
+  init (ctx: BotModuleInitContext) {
+    super.init(ctx)
+    const { bus } = ctx
     bus.registerMessage([this.diceFilter], e => this.onDice(e))
   }
   diceFilter (e: BotMessageEvent): boolean {

@@ -1,4 +1,4 @@
-import { BaseBotModule, TSBot, TSBotEventBus, BotMessageEvent, BotMessageType } from '../interface'
+import { BaseBotModule, BotMessageEvent, BotMessageType, BotModuleInitContext } from '../interface'
 import axios from 'axios'
 
 export class Tuling123 extends BaseBotModule {
@@ -8,8 +8,9 @@ export class Tuling123 extends BaseBotModule {
   constructor (private apiKey: string) {
     super()
   }
-  init (bot: TSBot, bus: TSBotEventBus) {
-    super.init(bot, bus)
+  init (ctx: BotModuleInitContext) {
+    super.init(ctx)
+    const { bus } = ctx
     bus.registerMessage([bus.atMeFilter], e => this.onMessage(e))
   }
   async onMessage (e: BotMessageEvent) {
