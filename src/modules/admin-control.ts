@@ -70,6 +70,9 @@ export class AdminControl extends BaseBotModule {
     }
   }
   async isAdmin (groupId: number, userId: number) {
+    if (this.adminQQ.includes(userId)) {
+      return true
+    }
     let r: any = await this.bot.send('get_group_member_info', {
       group_id: groupId,
       user_id: userId
