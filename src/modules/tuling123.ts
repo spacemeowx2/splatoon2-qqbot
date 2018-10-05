@@ -14,9 +14,6 @@ export class Tuling123 extends BaseBotModule {
     bus.registerMessage([bus.atMeFilter], e => this.onMessage(e))
   }
   async onMessage (e: BotMessageEvent) {
-    if (e.groupId === 240906453) {
-      return
-    }
     const { message } = e
     const resp = await axios.post(`http://openapi.tuling123.com/openapi/api/v2`, {
       reqType: 0,
@@ -39,9 +36,6 @@ export class Tuling123 extends BaseBotModule {
   }
   help (e: BotMessageEvent) {
     if (e.messageType === BotMessageType.Group) {
-      if (e.groupId === 240906453) {
-        return ''
-      }
       return '@bot "想说的话" (由 图灵123 提供 API )'
     }
     return ''
