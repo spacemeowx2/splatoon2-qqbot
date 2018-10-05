@@ -156,14 +156,14 @@ class BotEventBus {
   }
   registerMessage (m: BotModule, filters: MessageFilter[], listener: MessageListener) {
     this.msgListeners.push({
-      filters: [...this.globalFilters, ...filters],
+      filters,
       listener,
       module: m
     })
   }
   registerRequest (m: BotModule, filters: RequestFilter[], listener: RequestListener) {
     this.reqListeners.push({
-      filters: [...this.globalFilters, ...filters],
+      filters,
       listener,
       module: m
     })
@@ -171,7 +171,8 @@ class BotEventBus {
 
   protected runFilter<T extends BotPostType> (e: BotEventMap[T], listener: FilterListener<T>, def = true) {
     const { filters, module } = listener
-    for (let f of filters) {
+    const allFilters: AnyFilter[] = [...this.globalFilters, ...filters] as any
+    for (let f of allFilters) {
       let isAbort = false
       let abortResult: boolean
       const abort = (r: boolean) => {
@@ -270,7 +271,8 @@ export class TSBot implements BotModule {
 
     this.bot = bot
   }
-  connect () {
+  async connect () {
+    await this.storage.load()
     this.initModules()
     this.bot.connect()
   }
