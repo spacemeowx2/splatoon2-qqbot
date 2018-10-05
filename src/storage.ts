@@ -35,8 +35,8 @@ export class BotStorageService {
   constructor (private path: string) {
   }
   async load () {
-    let s = await readFile(this.path, 'utf-8')
     try {
+      let s = await readFile(this.path, 'utf-8')
       this.kv = JSON.parse(s)
     } catch (e) {
       console.warn('read from file failed, when parsing')
