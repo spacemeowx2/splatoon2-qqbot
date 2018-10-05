@@ -67,7 +67,7 @@ export type BotFilterContext = {
   abort: (r: boolean) => void
   module: BotModule
 }
-export type BotFilter<T extends BotPostType> = (event: BotEventMap[T], ctx?: BotFilterContext) => boolean
+export type BotFilter<T extends BotPostType> = (event: BotEventMap[T], ctx: BotFilterContext) => boolean
 export type MessageFilter = BotFilter<BotPostType.Message>
 export type RequestFilter = BotFilter<BotPostType.Request>
 export type AnyFilter = BotFilter<BotPostType.Any>
@@ -290,6 +290,9 @@ export class TSBot implements BotModule {
       auto_escape: true
     })
   }
+  getModules (): BotModule[] {
+    return this.modules
+  }
   exit () {
     this.bot.disconnect()
   }
@@ -316,7 +319,6 @@ export class TSBot implements BotModule {
       })
     }
     bus.registerMessage([bus.cmdFilter, this.helpFilter], e => this.onHelp(e))
-    bus.registerPrivate(e => this.onHelp(e))
   }
   help () {
     return ''
@@ -362,6 +364,8 @@ export class TSBot implements BotModule {
       }
       m.init(ctx)
     }
+    const myBus = new TSBotEventBus(this.bus, this)
+    myBus.registerPrivate(e => this.onHelp(e))
   }
   protected onHelp (e: BotMessageEvent) {
     return this.modules.map(m => {
@@ -409,10 +413,10 @@ function CQRequest2BotEvent (c: Record<string, any>): BotRequestEvent | undefine
   }
   return ret
 }
-function isBotMessageEvent (e: BotEvent): e is BotMessageEvent {
+export function isBotMessageEvent (e: BotEvent): e is BotMessageEvent {
   return e.postType === BotPostType.Message
 }
 
-function isBotRequestEvent (e: BotEvent): e is BotRequestEvent {
+export function isBotRequestEvent (e: BotEvent): e is BotRequestEvent {
   return e.postType === BotPostType.Request
 }

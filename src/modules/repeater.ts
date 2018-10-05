@@ -12,6 +12,7 @@ export class Repeater extends BaseBotModule {
   id = 'repeater'
   map: Map<number, RepeatInfo> = new Map()
   name = '复读机'
+  defaultEnable = false
 
   init (ctx: BotModuleInitContext) {
     super.init(ctx)

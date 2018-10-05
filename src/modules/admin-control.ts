@@ -1,5 +1,6 @@
-import { TSBot, BaseBotModule, TSBotEventBus, BotModuleInitContext, BotMessageType } from '../interface'
-import { BotMessageEvent, BotRequestEvent, BotRequestType, BotRequestSubType } from '../tsbot'
+import { BaseBotModule, BotModuleInitContext, BotMessageType, BotModule } from '../interface'
+import { BotMessageEvent, BotRequestEvent, BotRequestType, BotRequestSubType, isBotMessageEvent, AnyFilter } from '../tsbot'
+import { BotStorage } from '../storage'
 
 const RequestTimeout = 30 * 60 * 1000 // 30min
 const RequestTimeoutStr = '30分钟'
@@ -18,10 +19,14 @@ export class AdminControl extends BaseBotModule {
   name = '管理模块'
   adminQQ: number[] = []
   requestMap: Map<number, PendingRequest> = new Map()
+  enableStorage!: BotStorage<Record<number, boolean | undefined>>
 
   init (ctx: BotModuleInitContext) {
     super.init(ctx)
-    const { bus } = ctx
+    const { bot, bus, storage } = ctx
+  
+    this.enableStorage = storage.getChild('enable')
+    bus.bus.globalFilters.push(this.globalFilter)
     bus.registerMessage([bus.privateFilter, this.adminFilter], e => this.onAdmin(e))
     bus.registerMessage([bus.privateFilter], e => this.onPrivate(e))
     bus.registerRequest([this.groupInviteFilter], e => this.onInvite(e))
@@ -64,10 +69,50 @@ export class AdminControl extends BaseBotModule {
       }
     }
   }
-  onPrivate (e: BotMessageEvent): void | string {
+  async isAdmin (groupId: number, userId: number) {
+    let r: any = await this.bot.send('get_group_member_info', {
+      group_id: groupId,
+      user_id: userId
+    })
+    if (r.retcode === 0) {
+      const role = r.data.role
+      const isAdmin = role === 'owner' || role === 'admin'
+
+      return isAdmin
+    } else {
+      throw new Error('获取群信息失败, 请检查群号码')
+    }
+  }
+  async onPrivate (e: BotMessageEvent) {
     try {
       let { message, userId } = e
 
+      if (message.startsWith('列出模块')) {
+        message = message.substr(4)
+        let groupId = parseInt(message.trim())
+        let out: string[] = ['ID  名称  是否开启']
+        for (let m of this.bot.getModules()) {
+          out.push(`${m.id}  ${m.name}  ${this.isModuleEnabled(groupId, m)}`)
+        }
+        return out.join('\n')
+      } else if (message.startsWith('关闭模块') || message.startsWith('开启模块')) {
+        let val = message.startsWith('开启模块')
+        message = message.substr(4)
+        let args = message.split(' ').filter(i => i.length > 0)
+        let groupId = parseInt(args[0])
+        let mid = args[1]
+        if (await this.isAdmin(groupId, userId)) {
+          let dict = this.enableStorage.get(mid)
+          if (dict === undefined) {
+            dict = {}
+          }
+          dict[groupId] = val
+          this.enableStorage.set(mid, dict)
+          return `${val ? '开启' : '关闭'} ${mid} 成功`
+        } else {
+          return '你没有权限(该群管理员权限)'
+        }
+      }
     } catch (e) {
       console.error('err', e)
     }
@@ -96,6 +141,28 @@ export class AdminControl extends BaseBotModule {
     this.sendToAdmin(`${description} 回复 "同意${id}" 接受邀请, ${RequestTimeoutStr}超时`)
   }
 
+  isModuleEnabled (groupId: number, m: BotModule) {
+    let dict = this.enableStorage.get(m.id)
+    let ret: boolean | undefined
+    if (dict === undefined) {
+      ret = m.defaultEnable
+    } else {
+      ret = dict[groupId]
+      if (ret === undefined) {
+        ret = m.defaultEnable
+      }
+    }
+    return ret
+  }
+  globalFilter: AnyFilter = (e, { module: m }) => {
+    if (isBotMessageEvent(e)) {
+      if (e.messageType === BotMessageType.Group) {
+        let r = this.isModuleEnabled(e.groupId!, m)
+        return r
+      }
+    }
+    return true
+  }
   adminFilter = (e: BotMessageEvent) => {
     return this.adminQQ.includes(e.userId)
   }

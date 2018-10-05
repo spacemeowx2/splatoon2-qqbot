@@ -4,28 +4,27 @@ const writeFile = promisify(writeFileAsync)
 const readFile = promisify(readFileAsync)
 const AutoSaveInterval = 1000 * 10
 
-export type StorageValue = number | string
 export interface KeyValue {
-  [key: string]: StorageValue
+  [key: string]: any
 }
 
-export interface BotStorage {
-  set (key: string, value: StorageValue): void
-  get (key: string): any
-  getChild (prefix: string): BotStorage
+export interface BotStorage<T = any> {
+  set (key: string, value: T): void
+  get (key: string): T | undefined
+  getChild<T> (prefix: string): BotStorage<T>
 }
 
-class ChildStorage implements BotStorage {
+class ChildStorage<T> {
   constructor (private s: BotStorageService, private prefix: string) {
   }
-  set (key: string, value: StorageValue): void {
+  set (key: string, value: T): void {
     this.s.set(this.prefix + key, value)
     this.s.onAutoSave()
   }
-  get (key: string): StorageValue {
+  get (key: string): T | undefined {
     return this.s.get(this.prefix + key)
   }
-  getChild (prefix: string): BotStorage {
+  getChild<T> (prefix: string): BotStorage<T> {
     return new ChildStorage(this.s, this.prefix + prefix + '.')
   }
 }
@@ -49,13 +48,13 @@ export class BotStorageService {
     let s = JSON.stringify(this.kv)
     await writeFile(this.path, s)
   }
-  getChild (prefix: string): BotStorage {
+  getChild<T> (prefix: string): BotStorage<T> {
     return new ChildStorage(this, prefix + '.')
   }
-  set (key: string, value: StorageValue) {
+  set<T> (key: string, value: T) {
     this.kv[key] = value
   }
-  get (key: string): StorageValue {
+  get<T> (key: string): T | undefined {
     return this.kv[key]
   }
   onAutoSave () {
