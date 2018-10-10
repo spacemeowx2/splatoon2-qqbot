@@ -7,6 +7,7 @@ export function shuffle<T> (ary: T[]) {
   }
   return r
 }
+
 export function exclude<T> (ary: T[], exc: T[]) {
   return ary.filter(i => !exc.includes(i))
 }

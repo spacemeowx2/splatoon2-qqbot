@@ -5,7 +5,7 @@ import path from 'path'
 import moment from 'moment'
 import { stat as statAsync, readFile as readFileAsync } from 'fs'
 import { promisify } from 'util'
-import { shuffle } from '../utils/helper'
+import { shuffle } from '../utils/helpers'
 const stat = promisify(statAsync)
 const readFile = promisify(readFileAsync)
 const dataPath = path.resolve(__dirname, '..', '..', 'data')

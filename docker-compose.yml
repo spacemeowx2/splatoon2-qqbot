@@ -1,10 +1,19 @@
 version: "2"
 
 services:
+  priva:
+    build: ./deps/splatoon-privas
+    volumes:
+      - "./deps/splatoon-privas:/code"
+    command: python /code/src/start_rpc.py
+    ports:
+      - 4242
   dev:
     build: .
     volumes:
       - ".:/code"
+    depends_on:
+      - priva
     command: npm run dev
     environment:
       - CQ_HOST=${CQ_HOST}
@@ -12,3 +21,4 @@ services:
       - TSBOT_ADMIN=${TSBOT_ADMIN}
       - TULING123_TOKEN=${TULING123_TOKEN}
       - BOT_DEBUG=true
+      - PRIVA_HOST=priva:4242
