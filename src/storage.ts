@@ -10,7 +10,12 @@ export interface KeyValue {
 
 export interface BotStorage<T = any> {
   set (key: string, value: T): void
-  get (key: string): T | undefined
+  get<U = T> (key: string): U | undefined
+  getChild<T> (prefix: string): BotStorage<T>
+}
+interface Testing<T extends Record<string, any>> extends BotStorage<T> {
+  set<U extends keyof T> (key: keyof T, value: T[U]): void
+  get<U extends keyof T> (key: keyof T): T[U] | undefined
   getChild<T> (prefix: string): BotStorage<T>
 }
 
@@ -21,7 +26,7 @@ class ChildStorage<T> {
     this.s.set(this.prefix + key, value)
     this.s.onAutoSave()
   }
-  get (key: string): T | undefined {
+  get<U = T> (key: string): U | undefined {
     return this.s.get(this.prefix + key)
   }
   getChild<T> (prefix: string): BotStorage<T> {

@@ -8,6 +8,7 @@ export default class ZerorpcClient {
     }
 
     invoke<T>(name: string, ...args: any[]): Promise<[T, boolean]> {
+        console.log(name, ...args)
         return new Promise((resolve, reject) => {
             args.push((error: Error | null, res: T, more: boolean) => {
                 if (error) {

@@ -115,7 +115,7 @@ export class TSBotEventBus {
   atMeFilter: MessageFilter = (e) => {
     const atMe = `[CQ:at,qq=${e.selfId}]`
     if (e.message.includes(atMe)) {
-      e.message = e.message.replace(atMe, '')
+      e.message = e.message.replace(atMe, '').trim()
       return true
     }
     return false
