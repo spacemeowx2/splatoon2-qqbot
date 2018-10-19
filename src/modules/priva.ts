@@ -8,7 +8,7 @@ const privaRemovePlayersRe = /^出私房\s+(.*)$/
 const privaStartRe = /开始(?:比赛|对战|下一[轮局]|第(\d+)[轮局])(?:\s+(.*)\$\s+(.*))?$/
 const privaEndBattleRe = /^([aA]|[bB])\s*队?又?赢了/
 const privaEndRe = /(?:结束|关闭)私房$/
-const privaHelpRe = /^私房说明$/
+const privaHelpRe = /^私房(?:模块)?说明$/
 const privaRulesRe = /^(?:(?:当前)|(.*))私房规则$/
 const privaStandingRe = /(所有人)?排行榜/
 const privaHelpsRe = [
@@ -499,17 +499,19 @@ export class Priva extends BaseBotModule {
     return `私房模块：
 语法：@bot 命令
 命令列表：
-[开始|创建]x私房 [参数列表]
-撤销
-(刷新)私房状态
-进私房 [玩家列表]
-出私房 [玩家列表]
-开始[比赛|对战|下一[轮|局]|第n[轮|局]] ([A队玩家列表] : [B队玩家列表])
-[A队|B队]赢了
-(所有人)排行榜
-[结束|关闭]私房
-私房说明
-(x)私房规则`
+- [开始|创建]x私房 [参数列表]
+- 撤销
+- (刷新)私房状态
+- 进私房 [玩家列表]
+- 出私房 [玩家列表]
+- 开始[比赛|对战|下一[轮|局]|第n[轮|局]] ([A队玩家列表] : [B队玩家列表])
+- [A队|B队]赢了
+- (所有人)排行榜
+- [结束|关闭]私房
+- 私房说明
+- (x)私房规则
+私房类型：
+x ∈ {${this.getPrivaTypeNames()}}`
   }
 
   help(e: BotMessageEvent) {
