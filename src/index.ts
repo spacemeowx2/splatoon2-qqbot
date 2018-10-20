@@ -7,6 +7,7 @@ import { Eval } from './modules/eval'
 import { Tuling123 } from './modules/tuling123'
 import { Repeater } from './modules/repeater'
 import { DingGG } from './modules/dgg'
+import { Priva } from './modules/priva'
 
 async function main () {
   const access_token = process.env.CQ_ACCESS_TOKEN
@@ -35,6 +36,7 @@ async function main () {
   bot.registerModule(adminControl)
   bot.registerModule(new Splatoon2())
   bot.registerModule(new DingGG())
+  bot.registerModule(new Priva())
   if (process.env.TULING123_TOKEN) {
     bot.registerModule(new Tuling123(process.env.TULING123_TOKEN))
   }

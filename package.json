@@ -24,7 +24,8 @@
     "moment": "^2.22.2",
     "nodemon": "^1.18.4",
     "ts-node": "^7.0.1",
-    "typescript": "^3.0.3"
+    "typescript": "^3.0.3",
+    "zerorpc": "^0.9.8"
   },
   "devDependencies": {
     "canvas": "^1.6.12"

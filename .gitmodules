@@ -1,0 +1,3 @@
+[submodule "deps/splatoon-privas"]
+	path = deps/splatoon-privas
+	url = git@github.com:sunoru/splatoon-privas.git
