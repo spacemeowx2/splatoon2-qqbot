@@ -147,7 +147,16 @@ export class Splatoon2 extends BaseBotModule {
     } else if (message.includes('图')) {
       let idx = 0
       if (message.includes('下')) {
-        idx = 1
+        let count = message.split('下').length - 1
+        if (count == 1) {
+          let [_, suffix] = message.split('下')
+          idx = parseInt(suffix)
+          if (idx <= 0 || isNaN(idx)) {
+            idx = 1
+          }
+        } else {
+          idx = count
+        }
       }
       try {
         return `${atStr(e.userId)} ${await this.getCurrentStage(idx)}`
