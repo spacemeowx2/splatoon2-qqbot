@@ -11,3 +11,7 @@ export function shuffle<T> (ary: T[]) {
 export function exclude<T> (ary: T[], exc: T[]) {
   return ary.filter(i => !exc.includes(i))
 }
+
+export function pick<T> (ary: T[]) {
+  return ary[Math.floor(ary.length * Math.random())]
+}

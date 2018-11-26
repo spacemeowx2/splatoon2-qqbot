@@ -20,5 +20,8 @@ services:
       - CQ_ACCESS_TOKEN=${CQ_ACCESS_TOKEN}
       - TSBOT_ADMIN=${TSBOT_ADMIN}
       - TULING123_TOKEN=${TULING123_TOKEN}
+      - FLICK_APIKEY=${FLICK_APIKEY}
       - BOT_DEBUG=true
       - PRIVA_HOST=priva:4242
+    dns:
+      - 8.8.8.8
