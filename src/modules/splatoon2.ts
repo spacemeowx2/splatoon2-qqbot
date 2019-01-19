@@ -188,8 +188,8 @@ export class Splatoon2 extends BaseBotModule {
   async drawLine (ctx: CanvasRenderingContext2D, rule: Rule, ruleName: string, x: number, y: number) {
     ctx.fillText(ruleName, 5, y)
 
-    await this.drawImage(ctx, rule.stage_a.image, 5 + x, y, 120, 69)
-    await this.drawImage(ctx, rule.stage_b.image, 5 + x + 120 + 5, y, 120, 69)
+    await this.drawImage(ctx, rule.stage_a.image, 5 + x, y, 120, 69, 5)
+    await this.drawImage(ctx, rule.stage_b.image, 5 + x + 120 + 5, y, 120, 69, 5)
   }
   getTime (d: Date) {
     let h = d.getHours().toString()
@@ -225,7 +225,7 @@ export class Splatoon2 extends BaseBotModule {
     ]
     ctx.fillText(`${moment.unix(s.start_time).format('MM-DD HH:mm')} - ${moment.unix(s.end_time).format('MM-DD HH:mm')}`, 5, top)
 
-    await this.drawImage(ctx, s.stage.image, 5, top + 25, 120, 67)
+    await this.drawImage(ctx, s.stage.image, 5, top + 25, 120, 67, 5)
 
     let weaponXY = [5 + 120 + 5, top + 25]
     for (let i = 0; i < 4; i++) {
@@ -273,8 +273,6 @@ export class Splatoon2 extends BaseBotModule {
     return canvas.toBuffer('image/jpeg').toString('base64')
   }
   async drawWeapon (ctx: CanvasRenderingContext2D, w: S2Weapon, x: number, y: number) {
-    let specialImage
-    let subImage
     await this.drawImage(ctx, w.image, x, y, 65, 65)
     await this.drawImage(ctx, w.sub.image_a, x + 70, y, 30, 30)
     await this.drawImage(ctx, w.special.image_a, x + 70, y + 30 + 5, 30, 30)
@@ -310,7 +308,7 @@ export class Splatoon2 extends BaseBotModule {
     return canvas.toBuffer('image/jpeg').toString('base64')
   }
   // image: "/image/xxxx.png"
-  async drawImage(ctx: CanvasRenderingContext2D, image: string, x: number, y: number, w: number, h: number) {
+  async drawImage(ctx: CanvasRenderingContext2D, image: string, x: number, y: number, w: number, h: number, r = 0) {
     const dataFile = path.join(dataPath, image)
     let img = new Image()
 
@@ -321,7 +319,19 @@ export class Splatoon2 extends BaseBotModule {
       img.src = await this.getImage(this.getURL(image))
     }
 
+    ctx.save()
+    if (r > 0) {
+      ctx.beginPath()
+      ctx.moveTo(x + r, y)
+      ctx.arcTo(x + w, y, x + w, y + h, r)
+      ctx.arcTo(x + w, y + h, x, y + h, r)
+      ctx.arcTo(x, y + h, x, y, r)
+      ctx.arcTo(x, y, x + w, y, r)
+      ctx.closePath()
+      ctx.clip()
+    }
     ctx.drawImage(img as any, x, y, w, h)
+    ctx.restore()
   }
   async getImage (url: string) {
     if (this.cacheImg.has(url)) {
