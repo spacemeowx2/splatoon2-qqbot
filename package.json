@@ -21,7 +21,6 @@
     "@types/ws": "^6.0.1",
     "axios": "^0.18.0",
     "cq-websocket": "^1.6.0",
-    "flickrapi": "^0.6.0",
     "moment": "^2.22.2",
     "nodemon": "^1.18.4",
     "ts-node": "^7.0.1",

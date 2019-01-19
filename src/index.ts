@@ -8,7 +8,6 @@ import { Tuling123 } from './modules/tuling123'
 import { Repeater } from './modules/repeater'
 import { DingGG } from './modules/dgg'
 import { Priva } from './modules/priva'
-import { ImageSearch } from './modules/image-search'
 
 async function main () {
   const access_token = process.env.CQ_ACCESS_TOKEN
@@ -35,9 +34,6 @@ async function main () {
   bot.registerModule(new Dice())
   bot.registerModule(new Repeater())
   bot.registerModule(adminControl)
-  if (process.env.FLICK_APIKEY) {
-    bot.registerModule(new ImageSearch(process.env.FLICK_APIKEY))
-  }
   bot.registerModule(new Splatoon2())
   bot.registerModule(new DingGG())
   bot.registerModule(new Priva())
