@@ -4,7 +4,7 @@ import { TSBot } from './tsbot'
 import { AdminControl } from './modules/admin-control'
 import { Dice } from './modules/dice'
 import { Eval } from './modules/eval'
-import { Tuling123 } from './modules/tuling123'
+import { AIChat, ChatProvider } from './modules/aichat'
 import { Repeater } from './modules/repeater'
 import { DingGG } from './modules/dgg'
 import { Priva } from './modules/priva'
@@ -38,7 +38,14 @@ async function main () {
   bot.registerModule(new DingGG())
   bot.registerModule(new Priva())
   if (process.env.TULING123_TOKEN) {
-    bot.registerModule(new Tuling123(process.env.TULING123_TOKEN))
+    bot.registerModule(AIChat(ChatProvider.Tuling123, {
+      apiKey: process.env.TULING123_TOKEN
+    }))
+  } else if (process.env.QQAI_APPID && process.env.QQAI_APPKEY) {
+    bot.registerModule(AIChat(ChatProvider.QQAI, {
+      appId: process.env.QQAI_APPID,
+      appKey: process.env.QQAI_APPKEY
+    }))
   }
   bot.connect()
 }

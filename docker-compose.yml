@@ -19,6 +19,7 @@ services:
       - CQ_HOST=${CQ_HOST}
       - CQ_ACCESS_TOKEN=${CQ_ACCESS_TOKEN}
       - TSBOT_ADMIN=${TSBOT_ADMIN}
-      - TULING123_TOKEN=${TULING123_TOKEN}
+      - QQAI_APPID=${QQAI_APPID}
+      - QQAI_APPKEY=${QQAI_APPKEY}
       - BOT_DEBUG=true
       - PRIVA_HOST=priva:4242
