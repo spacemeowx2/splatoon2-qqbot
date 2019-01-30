@@ -126,7 +126,7 @@ class AIChatCls extends BaseBotModule {
 
   constructor (private provider: ChatProvider, private auth: Record<string, string>) {
     super()
-    this.name = `智障对话(${this.getProvider})`
+    this.name = `智障对话(${this.getProvider()})`
     this.backend = this.getBackend()
   }
   init (ctx: BotModuleInitContext) {
