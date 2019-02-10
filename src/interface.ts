@@ -6,6 +6,7 @@ export interface BotModuleInitContext {
   bot: TSBot
   bus: TSBotEventBus
   storage: BotStorage
+  deps: Record<string, BotModule>
 }
 export interface BotModule {
   id: string
@@ -13,7 +14,6 @@ export interface BotModule {
   defaultEnable: boolean
   init (ctx: BotModuleInitContext): void
   getDeps (): Record<string, BotModuleFactory>
-  setDeps (deps: Record<string, BotModule>): void
   help (e: BotMessageEvent): string
 }
 export type BotModuleFactory = { new (): BotModule }
@@ -29,9 +29,6 @@ export abstract class BaseBotModule implements BotModule {
   }
   getDeps () {
     return {}
-  }
-  setDeps (deps: Record<string, BotModule>) {
-    // do nothing
   }
   abstract help (e: BotMessageEvent): string
 }

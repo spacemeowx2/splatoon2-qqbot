@@ -3,11 +3,12 @@ import { Splatoon2 } from './modules/splatoon2'
 import { TSBot } from './tsbot'
 import { AdminControl } from './modules/admin-control'
 import { Dice } from './modules/dice'
-import { Eval } from './modules/eval'
+import { LiveNotification } from './modules/live-notification'
 import { AIChat, ChatProvider } from './modules/aichat'
 import { Repeater } from './modules/repeater'
 import { DingGG } from './modules/dgg'
 import { Priva } from './modules/priva'
+import { PictureSender } from './modules/pic-sender'
 
 async function main () {
   const access_token = process.env.CQ_ACCESS_TOKEN
@@ -31,12 +32,14 @@ async function main () {
   const bot = new TSBot(opt)
 
   bot.isPro = true
+  bot.registerModule(new PictureSender())
   bot.registerModule(new Dice())
   bot.registerModule(new Repeater())
   bot.registerModule(adminControl)
   bot.registerModule(new Splatoon2())
   bot.registerModule(new DingGG())
   bot.registerModule(new Priva())
+  bot.registerModule(new LiveNotification())
   if (process.env.TULING123_TOKEN) {
     bot.registerModule(AIChat(ChatProvider.Tuling123, {
       apiKey: process.env.TULING123_TOKEN

@@ -8,6 +8,15 @@ export interface KeyValue {
   [key: string]: any
 }
 
+class StorageArray {
+  constructor (private stor: BotStorage<string>) {
+
+  }
+}
+export function getArray<T = any> (stor: BotStorage<T>) {
+  stor.getChild('array')
+}
+
 export interface BotStorage<T = any> {
   set (key: string, value: T): void
   get<U = T> (key: string): U | undefined

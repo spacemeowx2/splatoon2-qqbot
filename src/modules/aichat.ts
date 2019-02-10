@@ -59,6 +59,9 @@ class QQAI implements ChatBackend {
   constructor (private appId: number, private appKey: string) {}
   async onMessage (e: BotMessageEvent) {
     const { message } = e
+    if (message === '') {
+      return '?'
+    }
     const req = this.getSignedData({
       session: this.md5(`${e.groupId}.${e.userId}`).substr(0, 16),
       question: message
@@ -69,13 +72,11 @@ class QQAI implements ChatBackend {
       }
     }
     const resp = await axios.post<QQAIResp>(
-      `https://api.ai.qq.com/fcgi-bin/nlp/nlp_textchat`,
-      this.querystring(req),
-      config
+      `https://api.ai.qq.com/fcgi-bin/nlp/nlp_textchat`, req, config
     )
     const { data } = resp
     if (data.ret !== 0) {
-      console.error(data)
+      console.error(data, req)
       return `错误: ${data.msg}`
     }
     let msg = data.data.answer
@@ -100,18 +101,17 @@ class QQAI implements ChatBackend {
       nonce_str: nonce,
     }
     const signStr = `${this.querystring(data)}&app_key=${this.appKey}`
-    console.log('sign', signStr)
 
-    return {
-      ...data,
-      sign: this.md5(signStr)
-    }
+    return `${signStr}&sign=${this.md5(signStr)}`
   }
   private querystring (data: Record<string, string>) {
-    return Object.keys(data).sort().map(k => `${k}=${encodeURIComponent(data[k])}`).join('&')
+    return Object.keys(data).sort().map(k => `${k}=${this.urlencode(data[k])}`).join('&')
   }
   private md5 (s: string) {
     return createHash('md5').update(s).digest("hex").toUpperCase()
+  }
+  private urlencode (s: string): string {
+    return encodeURIComponent(s).replace(/%20/g, '+')
   }
 }
 

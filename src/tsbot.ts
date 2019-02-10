@@ -309,8 +309,6 @@ export class TSBot implements BotModule {
   getDeps () {
     return {}
   }
-  setDeps () {
-  }
   init (ctx: BotModuleInitContext) {
     const { bus } = ctx
     if (IsDebug) {
@@ -359,10 +357,21 @@ export class TSBot implements BotModule {
   protected initModules () {
     const moduleStorage = this.storage.getChild('module')
     for (let m of this.modules) {
+      const depsType = m.getDeps()
+      let deps: Record<string, BotModule> = {}
+
+      for (let [k, v] of Object.entries(depsType)) {
+        const r = this.modules.find((module) => module instanceof v)
+        if (r) {
+          deps[k] = r
+        }
+      }
+
       const ctx = {
         bot: this,
         bus: new TSBotEventBus(this.bus, m),
-        storage: moduleStorage.getChild(m.id)
+        storage: moduleStorage.getChild(m.id),
+        deps
       }
       m.init(ctx)
     }
