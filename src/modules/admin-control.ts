@@ -2,8 +2,8 @@ import { BaseBotModule, BotModuleInitContext, BotMessageType, BotModule } from '
 import { BotMessageEvent, BotRequestEvent, BotRequestType, BotRequestSubType, isBotMessageEvent, AnyFilter } from '../tsbot'
 import { BotStorage } from '../storage'
 
-const RequestTimeout = 30 * 60 * 1000 // 30min
-const RequestTimeoutStr = '30分钟'
+const RequestTimeout = 24 * 60 * 60 * 1000 // 1day
+const RequestTimeoutStr = '1天'
 
 interface PendingRequest {
   expireAt: number
@@ -24,7 +24,7 @@ export class AdminControl extends BaseBotModule {
   init (ctx: BotModuleInitContext) {
     super.init(ctx)
     const { bot, bus, storage } = ctx
-  
+
     this.enableStorage = storage.getChild('enable')
     bus.bus.globalFilters.push(this.globalFilter)
     bus.registerMessage([bus.privateFilter, this.adminFilter], e => this.onAdmin(e))

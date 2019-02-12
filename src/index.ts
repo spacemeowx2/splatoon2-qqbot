@@ -32,10 +32,10 @@ async function main () {
   const bot = new TSBot(opt)
 
   bot.isPro = true
+  bot.registerModule(adminControl)
   bot.registerModule(new PictureSender())
   bot.registerModule(new Dice())
   bot.registerModule(new Repeater())
-  bot.registerModule(adminControl)
   bot.registerModule(new Splatoon2())
   bot.registerModule(new DingGG())
   bot.registerModule(new Priva())
