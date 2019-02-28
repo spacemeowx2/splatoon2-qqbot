@@ -30,6 +30,7 @@ export class AdminControl extends BaseBotModule {
     bus.registerMessage([bus.privateFilter, this.adminFilter], e => this.onAdmin(e))
     bus.registerMessage([bus.privateFilter], e => this.onPrivate(e))
     bus.registerRequest([this.groupInviteFilter], e => this.onInvite(e))
+    bus.registerMessage([bus.atMeFilter, this.adminFilter], e => (e.message.trim() === '群号') ? `群号: ${e.groupId!}` : undefined)
   }
 
   onInvite (e: BotRequestEvent) {
@@ -86,6 +87,23 @@ export class AdminControl extends BaseBotModule {
       throw new Error('获取群信息失败, 请检查群号码')
     }
   }
+  async isMember (groupId: number, userId: number) {
+    if (this.adminQQ.includes(userId)) {
+      return true
+    }
+    let r: any = await this.bot.send('get_group_member_info', {
+      group_id: groupId,
+      user_id: userId
+    })
+    if (r.retcode === 0) {
+      const role = r.data.role
+      const isMember = role === 'owner' || role === 'admin' || role === 'member'
+
+      return isMember
+    } else {
+      throw new Error('获取群信息失败, 请检查群号码')
+    }
+  }
   async onPrivate (e: BotMessageEvent) {
     try {
       let { message, userId } = e
@@ -93,6 +111,11 @@ export class AdminControl extends BaseBotModule {
       if (message.startsWith('列出模块')) {
         message = message.substr(4)
         let groupId = parseInt(message.trim())
+
+        if (!this.isMember(groupId, userId)) {
+          return `你还不是该群成员`
+        }
+
         let out: string[] = ['ID  名称  是否开启']
         for (let m of this.bot.getModules()) {
           out.push(`${m.id}  ${m.name}  ${this.isModuleEnabled(groupId, m)}`)
