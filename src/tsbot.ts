@@ -292,6 +292,16 @@ export class TSBot implements BotModule {
       auto_escape: true
     })
   }
+  sendGroupMessage (gid: number, message: string) {
+    if (IsDebug) {
+      message = `${DebugPrefix}${message}`
+    }
+    return this.bot('send_group_msg', {
+      group_id: gid,
+      message,
+      auto_escape: true
+    })
+  }
   getModules (): BotModule[] {
     return this.modules
   }
