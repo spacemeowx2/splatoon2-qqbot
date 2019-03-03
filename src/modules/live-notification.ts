@@ -128,6 +128,8 @@ class LiveMonitor {
     const deleted = curSet.filter(a => !rooms.some(b => LiveMonitor.roomCmp(a, b)))
     const added = rooms.filter(a => !curSet.some(b => LiveMonitor.roomCmp(a, b)))
 
+    console.log(`add ${added.length} deleted ${deleted.length}`)
+
     for (const i of deleted) {
       this.rooms.get(i)!.stop()
       this.rooms.delete(i)
@@ -186,11 +188,12 @@ export class LiveNotification extends BaseBotModule {
   }
   roomStart (room: RoomInfo) {
     console.log('start', room)
-    const gs = this.roomGroup.get(room)
-    if (!gs) {
-      console.log('!gs')
+    const key = [...this.roomGroup.keys()].find(i => LiveMonitor.roomCmp(i, room))
+    if (key === undefined) {
+      console.log('room key not found')
       return
     }
+    const gs = this.roomGroup.get(key)!
     for (const gid of gs) {
       this.bot.sendGroupMessage(gid, `${room.url} 开播啦`)
     }
@@ -323,6 +326,6 @@ export class LiveNotification extends BaseBotModule {
   }
   help () {
     return `直播提醒
-输入 "@bot 直播提醒 帮助" 查看详细帮助`
+输入 "@bot 直播提醒 命令" 查看详细帮助`
   }
 }
