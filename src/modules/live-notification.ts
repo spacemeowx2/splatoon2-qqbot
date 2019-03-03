@@ -130,6 +130,7 @@ class LiveMonitor {
 
     for (const i of deleted) {
       this.rooms.get(i)!.stop()
+      this.rooms.delete(i)
     }
     for (const i of added) {
       const m = new RoomMonitor(i, MonitorInterval)
