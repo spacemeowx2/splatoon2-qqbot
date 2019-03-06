@@ -2,7 +2,9 @@ import { BaseBotModule, BotMessageEvent, BotModuleInitContext } from '../interfa
 import { AdminControl } from './admin-control'
 import { parse, UrlWithStringQuery } from 'url'
 import { BotStorage } from '../storage'
+import moment from 'moment'
 import axios from 'axios'
+import { cqCode } from '../utils/cqcode'
 
 const MonitorInterval = 60 * 1000 // 1min
 
@@ -11,11 +13,27 @@ interface RoomInfo {
   host: string
   roomId: string
 }
+interface RoomLivingInfo {
+  user: string
+  title: string
+  startTime?: number
+  screenshot?: string
+  avatar?: string
+}
 interface SiteMonitor {
   getHost(): string[]
   parseRoomId(u: UrlWithStringQuery): Promise<string | undefined>
-  isRoomLive(room: RoomInfo): Promise<boolean>
+  getRoomInfo(room: RoomInfo): Promise<[boolean, RoomLivingInfo]>
   buildUrl(room: RoomInfo): string
+}
+interface BilibiliAPIResponse {
+  data: {
+    title: string
+    live_status: number
+    uname: string
+    live_time: string
+    face: string
+  }
 }
 class BilibiliMonitor implements SiteMonitor {
   getHost() {
@@ -31,16 +49,21 @@ class BilibiliMonitor implements SiteMonitor {
     }
     return r[1]
   }
-  async isRoomLive(room: RoomInfo) {
-    const { data } = await axios.get(this.buildUrl(room), {
+  async getRoomInfo (room: RoomInfo): Promise<[boolean, RoomLivingInfo]> {
+    // for keyframe: `https://api.live.bilibili.com/room/v1/Room/get_info?room_id=${room.roomId}`
+    const { data: { data } } = await axios.get<BilibiliAPIResponse>(`https://api.live.bilibili.com/room/v1/RoomStatic/get_room_static_info?room_id=${room.roomId}`, {
       headers: {
         'User-Agent': 'splatoon2-qqbot',
         'Accept': 'text/html'
       }
     })
-    const r = /"live_status":(\d)/.exec(data)
 
-    return !!(r && r[1] === '1')
+    return [data.live_status === 1, {
+      title: data.title,
+      user: data.uname,
+      startTime: moment(`${data.live_time} +8`, 'YYYY-MM-DD HH:mm:ss Z').unix(),
+      avatar: data.face
+    }]
   }
   buildUrl(room: RoomInfo) {
     return `https://live.bilibili.com/${room.roomId}`
@@ -56,7 +79,7 @@ class RoomMonitor {
   lastLive: RoomStatus = RoomStatus.NotFetched
   tid: NodeJS.Timer
   monitor: SiteMonitor
-  onStatusChange?: (room: RoomInfo, prev: RoomStatus, cur: RoomStatus) => void
+  onStatusChange?: (room: RoomInfo, prev: RoomStatus, cur: RoomStatus, info: RoomLivingInfo) => void
   constructor (public room: RoomInfo, private interval: number) {
     const m = LiveMonitor.findMonitor(room.host)
     if (m) {
@@ -69,10 +92,10 @@ class RoomMonitor {
   }
   async request () {
     if (this.onStatusChange) {
-      const r = await this.monitor.isRoomLive(this.room)
+      const [r, info] = await this.monitor.getRoomInfo(this.room)
       const cur = r ? RoomStatus.Streaming : RoomStatus.NotStreaming
       if (this.lastLive !== cur) {
-        this.onStatusChange(this.room, this.lastLive, cur)
+        this.onStatusChange(this.room, this.lastLive, cur, info)
       }
       this.lastLive = cur
     }
@@ -140,14 +163,14 @@ class LiveMonitor {
       this.rooms.set(i, m)
     }
   }
-  private handleStatusChange = (room: RoomInfo, prev: RoomStatus, cur: RoomStatus) => {
+  private handleStatusChange = (room: RoomInfo, prev: RoomStatus, cur: RoomStatus, info: RoomLivingInfo) => {
     if (prev === RoomStatus.NotFetched) {
       return
     }
     if (cur === RoomStatus.Streaming) {
-      this.live.roomStart(room)
+      this.live.roomStart(room, info)
     } else if (cur === RoomStatus.NotStreaming) {
-      this.live.roomStop(room)
+      this.live.roomStop(room, info)
     }
   }
 }
@@ -186,7 +209,7 @@ export class LiveNotification extends BaseBotModule {
     e.message = rest.join(' ')
     return true
   }
-  roomStart (room: RoomInfo) {
+  roomStart (room: RoomInfo, info: RoomLivingInfo) {
     console.log('start', room)
     const key = [...this.roomGroup.keys()].find(i => LiveMonitor.roomCmp(i, room))
     if (key === undefined) {
@@ -194,11 +217,21 @@ export class LiveNotification extends BaseBotModule {
       return
     }
     const gs = this.roomGroup.get(key)!
+    const { title, user, avatar } = info
     for (const gid of gs) {
-      this.bot.sendGroupMessage(gid, `${room.url} 开播啦`)
+      // this.bot.sendGroupMessage(gid, `${room.url} 开播啦`)
+      this.bot.send('send_group_msg', {
+        group_id: gid,
+        message: cqCode('share', {
+          url: room.url,
+          title: `直播提醒: ${title}`,
+          content: `UP主: ${user}`,
+          image: avatar || ''
+        })
+      })
     }
   }
-  roomStop (room: RoomInfo) {
+  roomStop (room: RoomInfo, info: RoomLivingInfo) {
     console.log('stop', room)
   }
   getAllRooms () {
@@ -262,7 +295,7 @@ export class LiveNotification extends BaseBotModule {
 
     const cmd = splited[0]
     const groupStor = this.storage.getChild<string>(e.groupId!.toString())
-    const isAdmin = this.admin.isAdmin(e.groupId!, e.userId)
+    const isAdmin = await this.admin.isAdmin(e.groupId!, e.userId)
     const adminCmds = ['添加', '删除']
 
     if (adminCmds.includes(cmd) && !isAdmin) {
