@@ -22,9 +22,8 @@ interface RoomLivingInfo {
 }
 interface SiteMonitor {
   getHost(): string[]
-  parseRoomId(u: UrlWithStringQuery): Promise<string | undefined>
+  parseRoom(u: UrlWithStringQuery): Promise<RoomInfo | undefined>
   getRoomInfo(room: RoomInfo): Promise<[boolean, RoomLivingInfo]>
-  buildUrl(room: RoomInfo): string
 }
 interface BilibiliAPIResponse {
   data: {
@@ -39,15 +38,27 @@ class BilibiliMonitor implements SiteMonitor {
   getHost() {
     return ['live.bilibili.com']
   }
-  async parseRoomId(u: UrlWithStringQuery) {
+  async parseRoom(u: UrlWithStringQuery) {
+    if (u.host === undefined) {
+      return
+    }
     if (u.pathname === undefined) {
-      return undefined
+      return
     }
-    const r = /^\/(\d+)/.exec(u.pathname)
+    const r = /^(\/h5)?\/(\d+)/.exec(u.pathname)
     if (r === null) {
-      return undefined
+      return
     }
-    return r[1]
+    const roomId = r[2]
+    const url = this.buildUrl(roomId)
+
+    const info: RoomInfo = {
+      host: u.host,
+      roomId,
+      url
+    }
+
+    return info
   }
   async getRoomInfo (room: RoomInfo): Promise<[boolean, RoomLivingInfo]> {
     // for keyframe: `https://api.live.bilibili.com/room/v1/Room/get_info?room_id=${room.roomId}`
@@ -65,8 +76,8 @@ class BilibiliMonitor implements SiteMonitor {
       avatar: data.face
     }]
   }
-  buildUrl(room: RoomInfo) {
-    return `https://live.bilibili.com/${room.roomId}`
+  buildUrl(roomId: string) {
+    return `https://live.bilibili.com/${roomId}`
   }
 }
 enum RoomStatus {
@@ -91,13 +102,17 @@ class RoomMonitor {
     }
   }
   async request () {
-    if (this.onStatusChange) {
-      const [r, info] = await this.monitor.getRoomInfo(this.room)
-      const cur = r ? RoomStatus.Streaming : RoomStatus.NotStreaming
-      if (this.lastLive !== cur) {
-        this.onStatusChange(this.room, this.lastLive, cur, info)
+    try {
+      if (this.onStatusChange) {
+        const [r, info] = await this.monitor.getRoomInfo(this.room)
+        const cur = r ? RoomStatus.Streaming : RoomStatus.NotStreaming
+        if (this.lastLive !== cur) {
+          this.onStatusChange(this.room, this.lastLive, cur, info)
+        }
+        this.lastLive = cur
       }
-      this.lastLive = cur
+    } catch (e) {
+      console.error('monitor request error', e)
     }
     this.tid = setTimeout(() => this.request(), this.interval)
   }
@@ -122,24 +137,20 @@ class LiveMonitor {
     const u = parse(url)
     if (!u.host) return undefined
     if (!this.SupportedHost.includes(u.host)) {
-      return undefined
+      return
     }
 
     const monitor = this.findMonitor(u.host)
     if (monitor === undefined) {
-      return undefined
-    }
-    const roomId = await monitor.parseRoomId(u)
-    if (roomId === undefined) {
-      return undefined
+      return
     }
 
-    const info: RoomInfo = {
-      host: u.host,
-      roomId,
-      url
+    const room = await monitor.parseRoom(u)
+    if (room === undefined) {
+      return
     }
-    return info
+
+    return room
   }
 
   rooms: Map<RoomInfo, RoomMonitor> = new Map()
