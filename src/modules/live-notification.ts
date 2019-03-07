@@ -284,9 +284,9 @@ export class LiveNotification extends BaseBotModule {
         this.setJSON(this.storage, 'groups', groups)
       }
     }
-    this.updateRooms()
     const groupStor = this.storage.getChild<string>(groupId.toString())
     this.setJSON(groupStor, 'list', list)
+    this.updateRooms()
   }
   async onMessage (e: BotMessageEvent) {
     const { message } = e
@@ -341,6 +341,13 @@ export class LiveNotification extends BaseBotModule {
         this.saveList(groupId, list)
 
         return '删除成功'
+      }
+      case '配置': {
+        if (list.length === 0) {
+          return '该群无直播提醒配置'
+        } else {
+          return list.map((i, no) => `${no + 1}. ${i.url}`).join('\n')
+        }
       }
       default: {
         return this.detailHelp()
