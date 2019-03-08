@@ -229,16 +229,26 @@ export class LiveNotification extends BaseBotModule {
     }
     const gs = this.roomGroup.get(key)!
     const { title, user, avatar } = info
+    let message: string
+    if (process.env.DISABLE_SHARE === '1') {
+      message = `直播提醒:
+标题: ${title}
+UP主: ${user}
+${room.url}`
+    } else {
+      message = cqCode('share', {
+        url: room.url,
+        title: `直播提醒: ${title}`,
+        content: `UP主: ${user}`,
+        image: avatar || ''
+      })
+    }
+    console.log(`roomStart send ${message} to ${gs.join(',')}`)
     for (const gid of gs) {
       // this.bot.sendGroupMessage(gid, `${room.url} 开播啦`)
       this.bot.send('send_group_msg', {
         group_id: gid,
-        message: cqCode('share', {
-          url: room.url,
-          title: `直播提醒: ${title}`,
-          content: `UP主: ${user}`,
-          image: avatar || ''
-        })
+        message: message
       })
     }
   }
