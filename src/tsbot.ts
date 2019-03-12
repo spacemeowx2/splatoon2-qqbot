@@ -1,5 +1,5 @@
 import CQWebSocket, { CQEvent, CQWebSocketOption, CQRequestOptions } from 'cq-websocket'
-import { BotModule, BotModuleFactory, BotModuleInitContext } from './interface'
+import { BotModule, BotModuleInitContext } from './interface'
 import { BotStorageService } from './storage'
 const DebugPrefix = 'debug '
 const IsDebug = !!process.env.BOT_DEBUG

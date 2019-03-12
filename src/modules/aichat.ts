@@ -1,6 +1,7 @@
 import { createHash } from 'crypto'
 import { BaseBotModule, BotMessageEvent, BotMessageType, BotModuleInitContext } from '../interface'
 import axios from 'axios'
+import { cqGetString } from '../utils/cqcode'
 
 export enum ChatProvider {
   Tuling123,
@@ -59,12 +60,13 @@ class QQAI implements ChatBackend {
   constructor (private appId: number, private appKey: string) {}
   async onMessage (e: BotMessageEvent) {
     const { message } = e
-    if (message === '') {
+    const question = cqGetString(message)
+    if (question === '') {
       return '?'
     }
     const req = this.getSignedData({
       session: this.md5(`${e.groupId}.${e.userId}`).substr(0, 16),
-      question: message
+      question
     })
     const config = {
       headers: {
@@ -105,13 +107,27 @@ class QQAI implements ChatBackend {
     return `${signStr}&sign=${this.md5(signStr)}`
   }
   private querystring (data: Record<string, string>) {
-    return Object.keys(data).sort().map(k => `${k}=${this.urlencode(data[k])}`).join('&')
+    return Object.keys(data).sort().map(k => `${k}=${this.php_urlencode(data[k])}`).join('&')
   }
   private md5 (s: string) {
     return createHash('md5').update(s).digest("hex").toUpperCase()
   }
-  private urlencode (s: string): string {
-    return encodeURIComponent(s).replace(/%20/g, '+')
+  private php_urlencode (s: string): string {
+    // a workaround for stupid php
+    const convertTable: [RegExp, string][] = [
+      [/!/g, '%21'],
+      [/'/g, '%27'],
+      [/\(/g, '%28'],
+      [/\)/g, '%29'],
+      [/\*/g, '%2A'],
+      [/~/g, '%7E'],
+      [/%20/g, '+']
+    ]
+    let ret = encodeURIComponent(s)
+    for (let [s, r] of convertTable) {
+      ret = ret.replace(s, r)
+    }
+    return ret
   }
 }
 
