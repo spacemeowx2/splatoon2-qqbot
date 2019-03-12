@@ -51,5 +51,9 @@ export class CQTag {
 }
 export function cqParse(s: string) {
   const re = /(\[CQ[^\]]*\])/g
-  return s.split(re).map(i => i[0] === '[' ? CQTag.parse(i) : i)
+  return s.split(re).map(i => i[0] === '[' ? CQTag.parse(i) : cqDecode(i))
+}
+export function cqGetString(s: string) {
+  const re = /(\[CQ[^\]]*\])/g
+  return s.split(re).map(i => i[0] === '[' ? '' : cqDecode(i)).join('')
 }
