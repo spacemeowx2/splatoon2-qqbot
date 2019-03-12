@@ -8,24 +8,12 @@ export interface KeyValue {
   [key: string]: any
 }
 
-class StorageArray {
-  constructor (private stor: BotStorage<string>) {
-
-  }
-}
-export function getArray<T = any> (stor: BotStorage<T>) {
-  stor.getChild('array')
-}
-
 export interface BotStorage<T = any> {
   set (key: string, value: T): void
   get<U = T> (key: string): U | undefined
+  del (key: string): boolean
   getChild<T> (prefix: string): BotStorage<T>
-}
-interface Testing<T extends Record<string, any>> extends BotStorage<T> {
-  set<U extends keyof T> (key: keyof T, value: T[U]): void
-  get<U extends keyof T> (key: keyof T): T[U] | undefined
-  getChild<T> (prefix: string): BotStorage<T>
+  flush(): Promise<void>
 }
 
 class ChildStorage<T> {
@@ -37,6 +25,14 @@ class ChildStorage<T> {
   }
   get<U = T> (key: string): U | undefined {
     return this.s.get(this.prefix + key)
+  }
+  del (key: string) {
+    const r = this.s.del(this.prefix + key)
+    this.s.onAutoSave()
+    return r
+  }
+  flush () {
+    return this.s.flush()
   }
   getChild<T> (prefix: string): BotStorage<T> {
     return new ChildStorage(this.s, this.prefix + prefix + '.')
@@ -70,6 +66,13 @@ export class BotStorageService {
   }
   get<T> (key: string): T | undefined {
     return this.kv[key]
+  }
+  del (key: string) {
+    const r = delete this.kv[key]
+    return r
+  }
+  async flush () {
+    await this.save()
   }
   onAutoSave () {
     const now = Date.now()

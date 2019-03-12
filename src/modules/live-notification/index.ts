@@ -1,95 +1,13 @@
-import { BaseBotModule, BotMessageEvent, BotModuleInitContext } from '../interface'
-import { AdminControl } from './admin-control'
-import { parse, UrlWithStringQuery } from 'url'
-import { BotStorage } from '../storage'
-import moment from 'moment'
-import axios from 'axios'
-import { cqCode } from '../utils/cqcode'
+import { BaseBotModule, BotMessageEvent, BotModuleInitContext } from '../../interface'
+import { AdminControl } from '../admin-control'
+import { parse } from 'url'
+import { cqCode } from '../../utils/cqcode'
+import { RoomLastInfo, RoomStatus, RoomLivingInfo, SiteMonitor, RoomInfo, roomCmp, roomUniqueKey, RoomInfoWithGroups } from './types'
+import { BilibiliMonitor } from './bilibili'
+import { LiveNotificationStorage } from './storage'
 
 const MonitorInterval = 60 * 1000 // 1min
 
-interface RoomInfo {
-  url: string
-  host: string
-  roomId: string
-}
-interface RoomLivingInfo {
-  user: string
-  title: string
-  startTime?: number
-  screenshot?: string
-  avatar?: string
-}
-interface SiteMonitor {
-  getHost(): string[]
-  parseRoom(u: UrlWithStringQuery): Promise<RoomInfo | undefined>
-  getRoomInfo(room: RoomInfo): Promise<[boolean, RoomLivingInfo]>
-}
-interface BilibiliAPIResponse {
-  data: {
-    title: string
-    live_status: number
-    uname: string
-    live_time: string
-    face: string
-  }
-}
-class BilibiliMonitor implements SiteMonitor {
-  getHost() {
-    return ['live.bilibili.com']
-  }
-  async parseRoom(u: UrlWithStringQuery) {
-    if (u.host === undefined) {
-      return
-    }
-    if (u.pathname === undefined) {
-      return
-    }
-    const r = /^(\/h5)?\/(\d+)/.exec(u.pathname)
-    if (r === null) {
-      return
-    }
-    const roomId = r[2]
-    const url = this.buildUrl(roomId)
-
-    const info: RoomInfo = {
-      host: u.host,
-      roomId,
-      url
-    }
-
-    return info
-  }
-  async getRoomInfo (room: RoomInfo): Promise<[boolean, RoomLivingInfo]> {
-    // for keyframe: `https://api.live.bilibili.com/room/v1/Room/get_info?room_id=${room.roomId}`
-    const { data: { data } } = await axios.get<BilibiliAPIResponse>(`https://api.live.bilibili.com/room/v1/RoomStatic/get_room_static_info?room_id=${room.roomId}`, {
-      headers: {
-        'User-Agent': 'splatoon2-qqbot',
-        'Accept': 'text/html'
-      }
-    })
-
-    return [data.live_status === 1, {
-      title: data.title,
-      user: data.uname,
-      startTime: moment(`${data.live_time} +8`, 'YYYY-MM-DD HH:mm:ss Z').unix(),
-      avatar: data.face
-    }]
-  }
-  buildUrl(roomId: string) {
-    return `https://live.bilibili.com/${roomId}`
-  }
-}
-enum RoomStatus {
-  NotFetched,
-  Streaming,
-  NotStreaming
-}
-interface RoomLastInfo {
-  lastTime: number
-  lastLive: RoomStatus
-  lastInfo?: RoomLivingInfo
-}
 class RoomMonitor implements RoomLastInfo {
   lastTime: number = 0 // in sec
   lastLive: RoomStatus = RoomStatus.NotFetched
@@ -142,12 +60,6 @@ class LiveMonitor {
   static findMonitor(host: string) {
     return this.Monitors.find(i => i.getHost().includes(host))
   }
-  static roomCmp(a: RoomInfo, b: RoomInfo) {
-    return (a.host === b.host) && (a.roomId === b.roomId)
-  }
-  static roomUnique(r: RoomInfo) {
-    return `${r.host}/${r.roomId}`
-  }
   static async parseRoom(url: string) {
     const u = parse(url)
     if (!u.host) return undefined
@@ -174,8 +86,8 @@ class LiveMonitor {
   }
   setRooms (rooms: RoomInfo[]) {
     const curSet = [...this.rooms.keys()]
-    const deleted = curSet.filter(a => !rooms.some(b => LiveMonitor.roomCmp(a, b)))
-    const added = rooms.filter(a => !curSet.some(b => LiveMonitor.roomCmp(a, b)))
+    const deleted = curSet.filter(a => !rooms.some(b => roomCmp(a, b)))
+    const added = rooms.filter(a => !curSet.some(b => roomCmp(a, b)))
 
     console.log(`add ${added.length} deleted ${deleted.length}`)
 
@@ -190,7 +102,7 @@ class LiveMonitor {
     }
   }
   getRoomLastInfo (room: RoomInfo): RoomLastInfo {
-    const k = [...this.rooms.keys()].find(i => LiveMonitor.roomCmp(i, room))
+    const k = [...this.rooms.keys()].find(i => roomCmp(i, room))
     if (k === undefined) {
       throw new Error('getLastStatus room key not found')
     }
@@ -215,22 +127,18 @@ export class LiveNotification extends BaseBotModule {
   defaultEnable = true
   private admin!: AdminControl
   private monitor = new LiveMonitor(this)
-  private roomGroup: Map<RoomInfo, number[]> = new Map()
+  private stor!: LiveNotificationStorage
 
   getDeps () {
     return {
       'admin': AdminControl
     }
   }
-  updateRooms() {
-    const r = this.getAllRooms()
-    this.monitor.setRooms([...r.keys()])
-    this.roomGroup = r
-  }
   init (ctx: BotModuleInitContext) {
     super.init(ctx)
     const { bus, deps } = ctx
     this.admin = deps.admin as AdminControl
+    this.stor = new LiveNotificationStorage(this.storage)
 
     bus.registerMessage([bus.atMeFilter, this.cmdFilter], e => this.onMessage(e))
     this.updateRooms()
@@ -243,102 +151,67 @@ export class LiveNotification extends BaseBotModule {
     e.message = rest.join(' ')
     return true
   }
-  roomStart (room: RoomInfo, info: RoomLivingInfo) {
-    console.log('start', room)
-    const key = [...this.roomGroup.keys()].find(i => LiveMonitor.roomCmp(i, room))
-    if (key === undefined) {
-      console.log('room key not found')
-      return
-    }
-    const gs = this.roomGroup.get(key)!
+  updateRooms () {
+    this.monitor.setRooms(this.stor.getRooms())
+  }
+  makeStartMessageByConfig ({ info: room, config: { config } }: RoomInfoWithGroups, info: RoomLivingInfo) {
     const { title, user, avatar } = info
-    let message: string
+    let msgs: string[] = []
     if (process.env.DISABLE_SHARE === '1') {
-      message = `直播提醒:
+      msgs.push(`直播提醒:
 标题: ${title}
 UP主: ${user}
-${room.url}`
+${room.url}`)
     } else {
-      message = cqCode('share', {
+      msgs.push(cqCode('share', {
         url: room.url,
         title: `直播提醒: ${title}`,
         content: `UP主: ${user}`,
         image: avatar || ''
-      })
+      }))
     }
-    console.log(`roomStart send ${message} to ${gs.join(',')}`)
-    for (const gid of gs) {
-      // this.bot.sendGroupMessage(gid, `${room.url} 开播啦`)
-      this.bot.send('send_group_msg', {
-        group_id: gid,
-        message: message
-      })
+    if (config['atall']) {
+      msgs.push(cqCode('at', { qq: 'all' }))
+    }
+    return msgs
+  }
+  makeStopMessageByConfig ({ info: room, config: { config } }: RoomInfoWithGroups, info: RoomLivingInfo) {
+    if (!config['stop']) {
+      return []
+    }
+    const { title, user } = info
+    let msgs: string[] = []
+      msgs.push(`停止直播:
+标题: ${title}
+UP主: ${user}
+${room.url}`)
+    return msgs
+  }
+  roomStart (room: RoomInfo, info: RoomLivingInfo) {
+    console.log('start', room)
+    const gs = this.stor.getConfigByRoom(room)
+    console.log(`roomStart notify ${gs.map(i => i.config.gid).join(',')}`)
+    for (const group of gs) {
+      for (const message of this.makeStartMessageByConfig(group, info)) {
+        this.bot.send('send_group_msg', {
+          group_id: group.config.gid,
+          message
+        })
+      }
     }
   }
   roomStop (room: RoomInfo, info: RoomLivingInfo) {
     console.log('stop', room)
-  }
-  getAllRooms () {
-    const groups = this.getJSON<number[]>(this.storage, 'groups') || []
-    let cache: Map<string, RoomInfo> = new Map()
-    let rooms: Map<RoomInfo, number[]> = new Map()
-
-    for (const gid of groups) {
-      const list = this.loadList(gid) || []
-      for (const room of list) {
-        const ruid = LiveMonitor.roomUnique(room)
-        if (!cache.has(ruid)) {
-          cache.set(ruid, room)
-        }
-
-        const k = cache.get(ruid)!
-        let v = rooms.get(k) || []
-        v.push(gid)
-        rooms.set(k, v)
+    const gs = this.stor.getConfigByRoom(room)
+    console.log(`roomStop notify ${gs.map(i => i.config.gid).join(',')}`)
+    for (const group of gs) {
+      for (const message of this.makeStopMessageByConfig(group, info)) {
+        this.bot.send('send_group_msg', {
+          group_id: group.config.gid,
+          message
+        })
       }
     }
-
-    return rooms
-  }
-  getJSON<T> (s: BotStorage, key: string) {
-    let json: T | undefined
-    const r = s.get<T | string>(key)
-    if (r === undefined) {
-      return undefined
-    }
-    if (typeof r === 'string') {
-      try {
-        json = JSON.parse(r)
-      } catch {}
-    } else {
-      json = r
-    }
-    return json
-  }
-  setJSON (s: BotStorage, key: string, v: any) {
-    s.set(key, v)
-  }
-  loadList (groupId: number) {
-    const groupStor = this.storage.getChild<string>(groupId.toString())
-    return this.getJSON<RoomInfo[]>(groupStor, 'list')
-  }
-  saveList (groupId: number, list: RoomInfo[]) {
-    let groups = this.getJSON<number[]>(this.storage, 'groups') || []
-    if (list.length > 0) {
-      if (!groups.includes(groupId)) {
-        groups.push(groupId)
-        this.setJSON(this.storage, 'groups', groups)
-      }
-    } else {
-      const idx = groups.indexOf(groupId)
-      if (idx !== -1) {
-        groups.splice(idx, 1)
-        this.setJSON(this.storage, 'groups', groups)
-      }
-    }
-    const groupStor = this.storage.getChild<string>(groupId.toString())
-    this.setJSON(groupStor, 'list', list)
-    this.updateRooms()
   }
   async onMessage (e: BotMessageEvent) {
     const { message } = e
@@ -346,7 +219,6 @@ ${room.url}`
     const splited = message.trim().split(' ')
 
     const cmd = splited[0]
-    const groupStor = this.storage.getChild<string>(e.groupId!.toString())
     const isAdmin = await this.admin.isAdmin(e.groupId!, e.userId)
     const adminCmds = ['添加', '删除']
 
@@ -354,7 +226,7 @@ ${room.url}`
       return '该命令只有管理员能使用'
     }
 
-    let list = this.loadList(groupId) || []
+    const list = this.stor.getGroupList(groupId)
 
     switch (cmd) {
       case '': {
@@ -368,13 +240,13 @@ ${room.url}`
           return '解析地址失败'
         }
 
-        const r = list.find(i => LiveMonitor.roomCmp(i, room))
-        if (r !== undefined) {
+        if (list.hasRoom(room)) {
           return '该直播间已存在'
         }
 
-        list.push(room)
-        this.saveList(groupId, list)
+        list.addRoom(room)
+        this.updateRooms()
+
         return '添加成功'
       }
       case '删除': {
@@ -384,13 +256,12 @@ ${room.url}`
           return '解析地址失败'
         }
 
-        const idx = list.findIndex(i => LiveMonitor.roomCmp(i, room))
-        if (idx === -1) {
+        if (!list.hasRoom(room)) {
           return '该直播间不存在'
         }
 
-        list.splice(idx, 1)
-        this.saveList(groupId, list)
+        list.delRoom(room)
+        this.updateRooms()
 
         return '删除成功'
       }
@@ -398,14 +269,14 @@ ${room.url}`
         if (list.length === 0) {
           return '该群无直播提醒配置'
         } else {
-          return list.map((i, no) => `${no + 1}. ${i.url}`).join('\n')
+          return [...list].map((i, no) => `${no + 1}. ${i.url}`).join('\n')
         }
       }
       case '状态': {
         if (list.length === 0) {
           return '该群无直播提醒配置'
         } else {
-          return list.map((i, no) => {
+          return [...list].map((i, no) => {
             const { lastInfo, lastTime, lastLive } = this.monitor.getRoomLastInfo(i)
             let prefix = `${no + 1}. ${i.url}`
             const fetchTime = ((lastTime === 0) || (lastLive === RoomStatus.NotFetched))
