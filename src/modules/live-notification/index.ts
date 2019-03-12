@@ -8,6 +8,13 @@ import { LiveNotificationStorage } from './storage'
 
 const MonitorInterval = 60 * 1000 // 1min
 
+const ConfigTable: {
+  [key: string]: string
+} = {
+  '全体成员': 'atall',
+  '停播提醒': 'stop'
+}
+
 class RoomMonitor implements RoomLastInfo {
   lastTime: number = 0 // in sec
   lastLive: RoomStatus = RoomStatus.NotFetched
@@ -156,7 +163,9 @@ export class LiveNotification extends BaseBotModule {
   }
   makeStartMessageByConfig ({ info: room, config: { config } }: RoomInfoWithGroups, info: RoomLivingInfo) {
     const { title, user, avatar } = info
+    const atall = !!config['atall']
     let msgs: string[] = []
+
     if (process.env.DISABLE_SHARE === '1') {
       msgs.push(`直播提醒:
 标题: ${title}
@@ -170,8 +179,9 @@ ${room.url}`)
         image: avatar || ''
       }))
     }
-    if (config['atall']) {
-      msgs.push(cqCode('at', { qq: 'all' }))
+
+    if (atall) {
+      msgs.push(`${cqCode('at', { qq: 'all' })} UP主: ${user} 开播啦`)
     }
     return msgs
   }
@@ -213,6 +223,13 @@ ${room.url}`)
       }
     }
   }
+  configToString (cfg: Record<string, any>) {
+    let r: string[] = []
+    for (let [k, v] of Object.entries(ConfigTable)) {
+      r.push(`${cfg[v] ? '+' : '-'}${k}`)
+    }
+    return r.join(' ')
+  }
   async onMessage (e: BotMessageEvent) {
     const { message } = e
     const groupId = e.groupId!
@@ -220,7 +237,7 @@ ${room.url}`)
 
     const cmd = splited[0]
     const isAdmin = await this.admin.isAdmin(e.groupId!, e.userId)
-    const adminCmds = ['添加', '删除']
+    const adminCmds = ['添加', '删除', '配置']
 
     if (adminCmds.includes(cmd) && !isAdmin) {
       return '该命令只有管理员能使用'
@@ -266,10 +283,50 @@ ${room.url}`)
         return '删除成功'
       }
       case '配置': {
+        if (splited[1] === '命令') {
+          return `可选选项: 全体成员, 停播提醒.
+直播提醒 配置 [直播间地址] +选项 或 -选项可为该直播间开启或关闭相应选项
+如:
+直播提醒 配置 https://live.bilibili.com/930140 +全体成员 +停播提醒
+即可在为直播间开启开播时@全体成员和停播时发送消息(停播提醒不会@全体成员)
+直播提醒 配置 https://live.bilibili.com/930140 -全体成员
+即可在为该直播间开播提醒时关闭@全体成员的功能
+
+* @全体成员 需要bot成为该群的管理员`
+        }
+        if (splited.length > 2) {
+          const url = splited[1]
+          const options = splited.slice(2)
+          const room = await LiveMonitor.parseRoom(url)
+          if (room === undefined) {
+            return '该直播间不存在'
+          }
+
+          const ValidKeys = Object.keys(ConfigTable)
+          let { config } = list.getConfigByRoom(room)
+          for (const o of options) {
+            const op = o[0]
+            const key = o.slice(1)
+            if (op !== '+' && op !== '-') {
+              return '选项必须以+或-开头'
+            }
+            const v = op === '+'
+            if (!ValidKeys.includes(key)) {
+              return `无效的关键字: ${key}`
+            }
+            config[ConfigTable[key]] = v
+          }
+          list.setRoomConfig(room, config)
+
+          return `配置成功: ${room.url} ${this.configToString(config)}`
+        }
         if (list.length === 0) {
           return '该群无直播提醒配置'
         } else {
-          return [...list].map((i, no) => `${no + 1}. ${i.url}`).join('\n')
+          return [...list].map((i, no) => {
+            const cfg = list.getConfigByRoom(i)
+            return `${no + 1}. ${i.url} ${this.configToString(cfg.config)}`
+          }).join('\n') + '\n\n输入直播提醒 配置 命令 查看详细帮助'
         }
       }
       case '状态': {
@@ -304,10 +361,10 @@ ${room.url}`)
 管理员指令:
 直播提醒 添加 [直播间地址]  将该直播间添加到提醒列表
 直播提醒 删除 [直播间地址]  将该直播间从提醒列表移除
+直播提醒 配置 [直播间地址] [+选项] [-选项] 显示, 设置该群的直播提醒配置
 * 目前仅支持b站直播
 
 普通指令:
-直播提醒 配置           显示该群的直播提醒配置
 直播提醒 状态           显示该群监控列表的当前状态`
   }
   help () {

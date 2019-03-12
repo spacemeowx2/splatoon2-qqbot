@@ -47,6 +47,20 @@ export class GroupList {
     this.s.groupDictUpdated = true
     this.s.save()
   }
+  getConfigByRoom (room: RoomInfo) {
+    const k = roomUniqueKey(room)
+    let gd = this.getGroupDict()
+    return gd[k]
+  }
+  setRoomConfig (room: RoomInfo, config: Record<string, any>) {
+    const k = roomUniqueKey(room)
+    let gd = this.getGroupDict()
+    gd[k] = {
+      ...gd[k],
+      config
+    }
+    this.s.save()
+  }
   get length () {
     let gd = this.getGroupDict()
     return Object.keys(gd).length
