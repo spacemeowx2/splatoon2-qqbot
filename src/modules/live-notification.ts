@@ -85,9 +85,15 @@ enum RoomStatus {
   Streaming,
   NotStreaming
 }
-class RoomMonitor {
+interface RoomLastInfo {
+  lastTime: number
+  lastLive: RoomStatus
+  lastInfo?: RoomLivingInfo
+}
+class RoomMonitor implements RoomLastInfo {
   lastTime: number = 0 // in sec
   lastLive: RoomStatus = RoomStatus.NotFetched
+  lastInfo?: RoomLivingInfo
   tid: NodeJS.Timer
   monitor: SiteMonitor
   onStatusChange?: (room: RoomInfo, prev: RoomStatus, cur: RoomStatus, info: RoomLivingInfo) => void
@@ -110,6 +116,8 @@ class RoomMonitor {
           this.onStatusChange(this.room, this.lastLive, cur, info)
         }
         this.lastLive = cur
+        this.lastTime = Math.floor((+Date) / 1000)
+        this.lastInfo = info
       }
     } catch (e) {
       console.error('monitor request error', e)
@@ -118,6 +126,13 @@ class RoomMonitor {
   }
   stop () {
     clearTimeout(this.tid)
+  }
+  getRoomLastInfo (): RoomLastInfo {
+    return {
+      lastInfo: this.lastInfo,
+      lastTime: this.lastTime,
+      lastLive: this.lastLive
+    }
   }
 }
 class LiveMonitor {
@@ -173,6 +188,14 @@ class LiveMonitor {
       m.onStatusChange = this.handleStatusChange
       this.rooms.set(i, m)
     }
+  }
+  getRoomLastInfo (room: RoomInfo): RoomLastInfo {
+    const k = [...this.rooms.keys()].find(i => LiveMonitor.roomCmp(i, room))
+    if (k === undefined) {
+      throw new Error('getLastStatus room key not found')
+    }
+    const m = this.rooms.get(k)!
+    return m.getRoomLastInfo()
   }
   private handleStatusChange = (room: RoomInfo, prev: RoomStatus, cur: RoomStatus, info: RoomLivingInfo) => {
     if (prev === RoomStatus.NotFetched) {
@@ -368,6 +391,24 @@ ${room.url}`
           return '该群无直播提醒配置'
         } else {
           return list.map((i, no) => `${no + 1}. ${i.url}`).join('\n')
+        }
+      }
+      case '状态': {
+        if (list.length === 0) {
+          return '该群无直播提醒配置'
+        } else {
+          return list.map((i, no) => {
+            const l = this.monitor.getRoomLastInfo(i)
+            if (l.lastLive === RoomStatus.Streaming && l.lastInfo) {
+              return `${no + 1}. ${i.url} 直播中 标题: ${l.lastInfo.title} UP主: ${l.lastInfo.user}`
+            } else if (l.lastLive === RoomStatus.NotFetched) {
+              return `${no + 1}. ${i.url} 未获取`
+            } else if (l.lastInfo) {
+              return `${no + 1}. ${i.url} 未开播 UP主: ${l.lastInfo.user}`
+            } else {
+              return `${no + 1}. ${i.url} 未开播`
+            }
+          }).join('\n')
         }
       }
       default: {
