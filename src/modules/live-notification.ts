@@ -116,7 +116,7 @@ class RoomMonitor implements RoomLastInfo {
           this.onStatusChange(this.room, this.lastLive, cur, info)
         }
         this.lastLive = cur
-        this.lastTime = Math.floor((+Date) / 1000)
+        this.lastTime = Math.floor(Date.now() / 1000)
         this.lastInfo = info
       }
     } catch (e) {
@@ -302,13 +302,21 @@ ${room.url}`
   }
   getJSON<T> (s: BotStorage, key: string) {
     let json: T | undefined
-    try {
-      json = JSON.parse(s.get(key)!)
-    } catch {}
+    const r = s.get<T | string>(key)
+    if (r === undefined) {
+      return undefined
+    }
+    if (typeof r === 'string') {
+      try {
+        json = JSON.parse(r)
+      } catch {}
+    } else {
+      json = r
+    }
     return json
   }
   setJSON (s: BotStorage, key: string, v: any) {
-    s.set(key, JSON.stringify(v))
+    s.set(key, v)
   }
   loadList (groupId: number) {
     const groupStor = this.storage.getChild<string>(groupId.toString())
@@ -398,15 +406,19 @@ ${room.url}`
           return '该群无直播提醒配置'
         } else {
           return list.map((i, no) => {
-            const l = this.monitor.getRoomLastInfo(i)
-            if (l.lastLive === RoomStatus.Streaming && l.lastInfo) {
-              return `${no + 1}. ${i.url} 直播中 标题: ${l.lastInfo.title} UP主: ${l.lastInfo.user}`
-            } else if (l.lastLive === RoomStatus.NotFetched) {
-              return `${no + 1}. ${i.url} 未获取`
-            } else if (l.lastInfo) {
-              return `${no + 1}. ${i.url} 未开播 UP主: ${l.lastInfo.user}`
+            const { lastInfo, lastTime, lastLive } = this.monitor.getRoomLastInfo(i)
+            let prefix = `${no + 1}. ${i.url}`
+            const fetchTime = ((lastTime === 0) || (lastLive === RoomStatus.NotFetched))
+              ? ''
+              : `上次获取: ${Math.floor(Date.now() / 1000 - lastTime)}秒前`
+            if (lastLive === RoomStatus.Streaming && lastInfo) {
+              return `${prefix} 直播中 标题: ${lastInfo.title} UP主: ${lastInfo.user} ${fetchTime}`
+            } else if (lastLive === RoomStatus.NotFetched) {
+              return `${prefix} 未获取`
+            } else if (lastInfo) {
+              return `${prefix} 未开播 UP主: ${lastInfo.user} ${fetchTime}`
             } else {
-              return `${no + 1}. ${i.url} 未开播`
+              return `${prefix} 未开播 ${fetchTime}`
             }
           }).join('\n')
         }
@@ -424,7 +436,8 @@ ${room.url}`
 * 目前仅支持b站直播
 
 普通指令:
-直播提醒 配置           显示该群的直播提醒配置`
+直播提醒 配置           显示该群的直播提醒配置
+直播提醒 状态           显示该群监控列表的当前状态`
   }
   help () {
     return `直播提醒
