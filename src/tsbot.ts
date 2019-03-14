@@ -1,6 +1,7 @@
 import CQWebSocket, { CQEvent, CQWebSocketOption, CQRequestOptions } from 'cq-websocket'
 import { BotModule, BotModuleInitContext } from './interface'
 import { BotStorageService } from './storage'
+import { cqGetString } from './utils/cqcode'
 const DebugPrefix = 'debug '
 const IsDebug = !!process.env.BOT_DEBUG
 const ConfigPath = process.env.BOT_CONFIG_PATH || './config.json'
@@ -353,11 +354,11 @@ export class TSBot implements BotModule {
     }
   }
   protected helpFilter (e: BotMessageEvent) {
-    const { message } = e
+    const msg = cqGetString(e.message)
     const keyword = ['help', '帮助', '?', '使用说明']
 
     for (let k of keyword) {
-      if (message.includes(k)) {
+      if (msg.includes(k)) {
         return true
       }
     }

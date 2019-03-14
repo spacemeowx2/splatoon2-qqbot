@@ -1,5 +1,5 @@
 import { BaseBotModule, BotMessageEvent, BotModuleInitContext } from '../interface'
-import { cqGetString } from '../utils/cqcode'
+import { cqGetString, cqEncode } from '../utils/cqcode'
 
 export class PersonalData extends BaseBotModule {
   id = 'personal-data'
@@ -19,7 +19,7 @@ export class PersonalData extends BaseBotModule {
       return `${this.bot.atStr(e.userId)} 你还没有设置个人档, 发送 @bot 设置个人档 + 内容即可设置`
     }
 
-    return `${this.bot.atStr(e.userId)} ${r}`
+    return `${this.bot.atStr(e.userId)} ${cqEncode(r)}`
   }
   private onSet (e: BotMessageEvent) {
     const msg = cqGetString(e.message).trim()
