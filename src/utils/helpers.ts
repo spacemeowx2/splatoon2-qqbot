@@ -11,3 +11,7 @@ export function shuffle<T> (ary: T[]) {
 export function exclude<T> (ary: T[], exc: T[]) {
   return ary.filter(i => !exc.includes(i))
 }
+
+export function arrayBufferToBuffer (a: ArrayBuffer) {
+  return Buffer.from(new Uint8Array(a))
+}

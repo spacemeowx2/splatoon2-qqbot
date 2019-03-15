@@ -1,7 +1,7 @@
 import { BaseBotModule, BotMessageEvent, BotModuleInitContext } from '../../interface'
 import { AdminControl } from '../admin-control'
 import { parse } from 'url'
-import { cqCode } from '../../utils/cqcode'
+import { CQCode, cql, cqCode } from '../../utils/cqcode'
 import { RoomLastInfo, RoomStatus, RoomLivingInfo, SiteMonitor, RoomInfo, roomCmp, roomUniqueKey, RoomInfoWithGroups } from './types'
 import { BilibiliMonitor } from './bilibili'
 import { LiveNotificationStorage } from './storage'
@@ -167,21 +167,21 @@ export class LiveNotification extends BaseBotModule {
     let msgs: string[] = []
 
     if (process.env.DISABLE_SHARE === '1') {
-      msgs.push(`直播提醒:
+      msgs.push(cql`直播提醒:
 标题: ${title}
 UP主: ${user}
 ${room.url}`)
     } else {
-      msgs.push(cqCode('share', {
+      msgs.push(`${cqCode('share', {
         url: room.url,
         title: `直播提醒: ${title}`,
         content: `UP主: ${user}`,
         image: avatar || ''
-      }))
+      })}`)
     }
 
     if (atall) {
-      msgs.push(`${cqCode('at', { qq: 'all' })} UP主: ${user} 开播啦`)
+      msgs.push(cql`${new CQCode('at', {qq: 'all'})} UP主: ${user} 开播啦`)
     }
     return msgs
   }

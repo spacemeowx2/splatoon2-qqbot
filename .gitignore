@@ -6,3 +6,4 @@ env
 env.example
 config.json
 run.bat
+storage/

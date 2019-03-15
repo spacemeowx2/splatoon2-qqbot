@@ -1,4 +1,5 @@
 import { BaseBotModule, BotMessageEvent, BotModuleInitContext } from '../interface'
+import { isCQCode, cqParse } from '../utils/cqcode'
 
 interface RepeatInfo {
   lastMessage: string,
@@ -27,6 +28,12 @@ export class Repeater extends BaseBotModule {
     const randomTimes = Math.floor(Math.random() * 4 + 3)
     const groupId = e.groupId!
     const { message } = e
+    const list = cqParse(message)
+
+    const blackType = ['at', 'share', 'music', 'anonymous', 'record']
+    if (list.some(i => isCQCode(i) && blackType.includes(i.type)) ) {
+      return
+    }
 
     if (Math.floor(Math.random() * 100) === 50) {
       console.log('lucky repeat', message)
@@ -56,7 +63,6 @@ export class Repeater extends BaseBotModule {
       info.sent = false
     }
 
-    console.log(info)
     if (!info.sent) {
       if (info.repeatTime > randomTimes) {
         const randomSleep = (Math.random() * 5 + 5) * 1000
