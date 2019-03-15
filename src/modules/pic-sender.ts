@@ -1,5 +1,5 @@
 import { BaseBotModule, BotMessageEvent, BotModuleInitContext } from '../interface'
-import axios from 'axios'
+import { cqGetString } from '../utils/cqcode'
 
 export class PictureSender extends BaseBotModule {
   id = 'pic-sender'
@@ -15,7 +15,7 @@ export class PictureSender extends BaseBotModule {
   async onMessage (e: BotMessageEvent) {
     const re = /^https?:\/\//
     let { message } = e
-    message = message.trim()
+    message = cqGetString(message).trim()
     if (re.test(message)) {
       console.log(`send pic ${message}`)
       return `[CQ:image,file=${message}]`
