@@ -41,9 +41,11 @@ export class GroupList {
   delRoom (room: RoomInfo) {
     let { roomInfos } = this.s
     const k = roomUniqueKey(room)
-    delete roomInfos[k]
     let gd = this.getGroupDict()
     delete gd[k]
+    if (this.s.getConfigByRoom(room).length === 0) {
+      delete roomInfos[k]
+    }
     this.s.groupDictUpdated = true
     this.s.save()
   }
