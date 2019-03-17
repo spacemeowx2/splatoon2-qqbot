@@ -60,12 +60,14 @@ export class PersonalData extends BaseBotModule {
       return this.reply(e, `最多只能存一张图片噢 你发了${picCount}张`)
     }
 
-    const imageCode = list.find(i => isCQCode(i)) as CQCode
-    const imgUrl = imageCode.data.url
-    const img = await axios.get<ArrayBuffer>(imgUrl, {
-      responseType: 'arraybuffer'
-    })
-    await this.file.write(key, arrayBufferToBuffer(img.data))
+    const imageCode = list.find(i => isCQCode(i)) as CQCode | undefined
+    if (imageCode !== undefined) {
+      const imgUrl = imageCode.data.url
+      const img = await axios.get<ArrayBuffer>(imgUrl, {
+        responseType: 'arraybuffer'
+      })
+      await this.file.write(key, arrayBufferToBuffer(img.data))
+    }
 
     const saveList = list.map(i => isCQCode(i) ? new CQCode(LocalImageType, { key }) : i)
 
