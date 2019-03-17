@@ -246,10 +246,6 @@ ${room.url}`)
     const list = this.stor.getGroupList(groupId)
 
     switch (cmd) {
-      case '': {
-        console.log('a ')
-        return
-      }
       case '添加': {
         const url = splited[1]
         const room = await LiveMonitor.parseRoom(url)
@@ -329,6 +325,7 @@ ${room.url}`)
           }).join('\n') + '\n\n输入直播提醒 配置 命令 查看详细帮助'
         }
       }
+      case '':
       case '状态': {
         if (list.length === 0) {
           return '该群无直播提醒配置'
