@@ -69,7 +69,7 @@ export function cql(literals: TemplateStringsArray, ...placeholders: CQMessageLi
 }
 export function cqParse(s: string) {
   const re = /(\[CQ[^\]]*\])/g
-  return s.split(re).map(i => i[0] === '[' ? CQCode.parse(i) : cqDecode(i))
+  return s.split(re).filter(i => i.length > 0).map(i => i[0] === '[' ? CQCode.parse(i) : cqDecode(i))
 }
 export function cqStringify(ary: CQMessageList) {
   return ary.map(i => typeof i === 'string' ? cqEncode(i) : i.toString()).join('')
