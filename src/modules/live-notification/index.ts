@@ -7,6 +7,7 @@ import { BilibiliMonitor } from './bilibili'
 import { LiveNotificationStorage } from './storage'
 
 const MonitorInterval = 60 * 1000 // 1min
+const GlobalTimeout = 10 * 1000 // 10s
 
 const ConfigTable: {
   [key: string]: string
@@ -32,22 +33,31 @@ class RoomMonitor implements RoomLastInfo {
       throw new Error('Monitor not found')
     }
   }
+  timeoutWrapper<T> (p: () => Promise<T>) {
+    return new Promise<T>((resolve, reject) => {
+      p().then(resolve, reject)
+      setTimeout(() => reject(new Error('Global timeout')), GlobalTimeout)
+    })
+  }
   async request () {
     try {
-      if (this.onStatusChange) {
-        const [r, info] = await this.monitor.getRoomInfo(this.room)
-        const cur = r ? RoomStatus.Streaming : RoomStatus.NotStreaming
-        if (this.lastLive !== cur) {
-          this.onStatusChange(this.room, this.lastLive, cur, info)
+      await this.timeoutWrapper(async () => {
+        if (this.onStatusChange) {
+          const [r, info] = await this.monitor.getRoomInfo(this.room)
+          const cur = r ? RoomStatus.Streaming : RoomStatus.NotStreaming
+          if (this.lastLive !== cur) {
+            this.onStatusChange(this.room, this.lastLive, cur, info)
+          }
+          this.lastLive = cur
+          this.lastTime = Math.floor(Date.now() / 1000)
+          this.lastInfo = info
         }
-        this.lastLive = cur
-        this.lastTime = Math.floor(Date.now() / 1000)
-        this.lastInfo = info
-      }
+      })
     } catch (e) {
-      console.error('monitor request error', e)
+      console.error('monitor request error', this.room.url, e)
+    } finally {
+      this.tid = setTimeout(() => this.request(), this.interval)
     }
-    this.tid = setTimeout(() => this.request(), this.interval)
   }
   stop () {
     clearTimeout(this.tid)
