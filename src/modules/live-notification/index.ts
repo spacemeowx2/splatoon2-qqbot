@@ -6,7 +6,7 @@ import { RoomLastInfo, RoomStatus, RoomLivingInfo, SiteMonitor, RoomInfo, roomCm
 import { BilibiliMonitor } from './bilibili'
 import { LiveNotificationStorage } from './storage'
 
-const MonitorInterval = 60 * 1000 // 1min
+const MonitorInterval = 5 * 60 * 1000 // 5mins
 const GlobalTimeout = 10 * 1000 // 10s
 
 const ConfigTable: {
