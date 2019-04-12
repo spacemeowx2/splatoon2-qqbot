@@ -55,9 +55,10 @@ export class HorseRacing extends BaseBotModule {
   }
 
   onAcceptMessage(e: BotMessageEvent) {
-    this.sessions.forEach((value, key) => {
-      value.onAcceptMessage(e.message, e.userId);
-    });
+    const session = this.sessions.get(new InteractionID(e.groupId, e.userId).getID())
+    if (session) {
+      session.onAcceptMessage(e.message, e.userId);
+    }
   }
 
   onMessage(e: BotMessageEvent) {

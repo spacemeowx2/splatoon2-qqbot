@@ -113,10 +113,10 @@ export class RacingSession {
   }
 
   public async start(
-    onPlayers: (sessionContext: RacingSession, text: string, playerList: Map<number, any>) => void,
-    schedule: (sessionContext: RacingSession, text: string, atList?: number[]) => void,
-    onEnd: (sessionContext: RacingSession, text: string) => void,
-    onFinished: (sessionContext: RacingSession, tracks: TrackData[]) => void
+    onPlayers: (sessionContext: RacingSession, text: string, playerList: Map<number, any>) => Promise<void>,
+    schedule: (sessionContext: RacingSession, text: string, atList?: number[]) => Promise<void>,
+    onEnd: (sessionContext: RacingSession, text: string) => Promise<void>,
+    onFinished: (sessionContext: RacingSession, tracks: TrackData[]) => Promise<void>
   ) {
     if (this._status !== SessionStatus.Inactive) {
       return;
@@ -127,10 +127,10 @@ export class RacingSession {
     // =======================================================================================
 
     this._status = SessionStatus.Ready;
-    schedule(this, randomIn(["赛马游戏准备开始了！", "一场空前盛况的比赛即将开始！"]));
+    await schedule(this, randomIn(["赛马游戏准备开始了！", "一场空前盛况的比赛即将开始！"]));
 
     await sleep(1000);
-    schedule(
+    await schedule(
       this,
       `各位玩家请做好准备！${GameConfig.readyTime /
         1000}秒后赛场将会生成！\n届时请通过直接输入数字编号选择你看好的角色！`
@@ -147,7 +147,7 @@ export class RacingSession {
       playerInfos += `${index + 1} - ${v.character.icon}【${v.character.name}】\n`;
     });
 
-    schedule(
+    await schedule(
       this,
       `赛场生成了，赛场信息如下：
 
@@ -164,7 +164,7 @@ ${playerInfos}
 
     // 游戏人数为 0
     if (this._players.size === 0) {
-      onEnd(
+      await onEnd(
         this,
         randomIn([
           `非常遗憾，居然没人愿意参加这场比赛。比赛赞助商亏到破产，游戏结束了！`,
@@ -177,7 +177,7 @@ ${playerInfos}
 
     // 游戏人数
     if (this._players.size < GameConfig.minimumPlayers) {
-      onEnd(
+      await onEnd(
         this,
         randomIn([
           `呃，怎么回事，居然只有${this._players.size}人报名参加比赛。庄家们非常失望，撤销了比赛。游戏结束！`,
@@ -190,7 +190,7 @@ ${playerInfos}
       return;
     }
 
-    onPlayers(
+    await onPlayers(
       this,
       `本次共有 ${this._players.size} 名召唤师参加了比赛。他们是：\n\n%s，\n\n为他们喝彩吧！`,
       this._players
@@ -209,7 +209,7 @@ ${playerInfos}
           return `${v.name}`;
         });
 
-      schedule(
+      await schedule(
         this,
         `倒计时${GameConfig.waitingTime / 1000}秒，比赛即将开始！开始后每个参与的选手可以通过输入以下技能干涉比赛：
 ${skills.join("\n")}
@@ -223,7 +223,7 @@ ${skills.join("\n")}
     // =======================================================================================
     //  ○ 主游戏流程
     // =======================================================================================
-    schedule(this, `比赛开始！！！`);
+    await schedule(this, `比赛开始！！！`);
     await sleep(GameConfig.waitingTime);
 
     const handleRound = async () => {
@@ -258,7 +258,7 @@ ${skills.join("\n")}
             }
           });
 
-          schedule(this, description);
+          await schedule(this, description);
 
           await sleep(GameConfig.skillCastTime);
         }
@@ -279,7 +279,7 @@ ${skills.join("\n")}
       await handleRound();
 
       // 更新赛场
-      schedule(this, this.renderPlayground());
+      await schedule(this, this.renderPlayground());
 
       // 核算战绩
       const sortedTracks = new Array<TrackData>().concat(this._inGameData.tracks);
@@ -295,16 +295,13 @@ ${skills.join("\n")}
 
       // 第一名超过100之后则比赛结束
       if (sortedTracks[0].progress >= 100) {
-        clearInterval(this._scheduleTimer);
-
-        schedule(this, `有选手率先到达终点，比赛结束了。`);
-        onFinished(this, sortedTracks);
+        await schedule(this, `有选手率先到达终点，比赛结束了。`);
+        await onFinished(this, sortedTracks);
         break;
       }
 
       await sleep(GameConfig.roundTime);
     }
-    // this._scheduleTimer = setInterval(() => {}, GameConfig.roundTime);
   }
 
   public generatePlayground() {
