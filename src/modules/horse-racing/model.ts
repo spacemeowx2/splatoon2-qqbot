@@ -6,7 +6,7 @@ export class Character {
 
 export class Effect {
   public type: "speed" | "progress" = "speed";
-  public targets: ("self" | "all" | "random")[] = ["self"];
+  public targets: ("self" | "all" | "random" | "others")[] = ["self"];
   public values: number[] = [];
   public suffixes: string[] = [];
 }

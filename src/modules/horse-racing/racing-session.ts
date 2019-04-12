@@ -30,11 +30,11 @@ export class TrackData {
 // 游戏配置
 const GameConfig = {
   readyTime: 10000, // 准备时间
-  voteTime: 60000, // 投票选角色时间
+  voteTime: 40000, // 投票选角色时间
   waitingTime: 10000, // 游戏开始前等待时间
   minimumPlayers: 3, // 最小参与玩家数量，满足参与人数才会开始比赛
-  maximumPlayers: 10, // 最大参与玩家数量，报名满了之后则不接受报名
-  trackCount: 6, // 赛道数，请确保该数量小于角色数量，并且尽可能不要到达10个，否则可能会触发QQ气泡文本的排版问题，影响美观
+  maximumPlayers: 30, // 最大参与玩家数量，报名满了之后则不接受报名
+  trackCount: 8, // 赛道数，请确保该数量小于角色数量，并且尽可能不要到达10个，否则可能会触发QQ气泡文本的排版问题，影响美观
   allowSkills: false, // 是否允许使用技能
   maxTrackProgress: 44, // 赛道长度，即赛道的空格数量，默认已适配手机聊天气泡和PC QQ的宽度，慎重修改
   skillCastTime: 2000, // 每回合角色使用被动技能间隔
@@ -95,7 +95,7 @@ export class RacingSession {
 
           // 已经选过则忽略
           if (this._players.has(userid)) {
-            return
+            return;
           }
 
           if (track.players.indexOf(order) < 0) {
@@ -154,12 +154,9 @@ export class RacingSession {
     await schedule(
       this,
       `赛场生成了，赛场信息如下：
-
 ${this.renderPlayground()}
-
 角色列表：
 ${playerInfos}
-
 请各位玩家输入对应数字编号与比赛的角色签订契约！\n你有${GameConfig.voteTime / 1000}秒的时间做出抉择。`
     );
 
@@ -218,7 +215,6 @@ ${playerInfos}
         this,
         `倒计时${GameConfig.waitingTime / 1000}秒，比赛即将开始！开始后每个参与的选手可以通过输入以下技能干涉比赛：
 ${skills.join("\n")}
-
 每个技能只能使用一次，在游戏过程中随时发送对应的文本即可。重复输入无效。`
       );
 
@@ -233,12 +229,9 @@ ${skills.join("\n")}
 
     const handleRound = async () => {
       for (let i = 0; i < this._inGameData.tracks.length; ++i) {
-        const track = this._inGameData.tracks[i];
+        const currentTrack = this._inGameData.tracks[i];
 
-        // 随机增加 2%-6% 基础进度
-        track.progress += getRandomIntInclusive(2, 6) + track.currentSpeed;
-
-        const character = track.character;
+        const character = currentTrack.character;
         if (Math.random() <= 0.3 && character.skills && character.skills.length > 0) {
           const skill = randomIn(character.skills);
 
@@ -253,18 +246,56 @@ ${skills.join("\n")}
           skill.effects.map((effect, index) => {
             const value = randomIn(effect.values);
 
-            switch (effect.type) {
-              case "speed": {
-                track.currentSpeed += value;
+            const addTrackProperty = (t: TrackData, type: string, value: number) => {
+              switch (effect.type) {
+                case "speed": {
+                  t.currentSpeed += value;
+                }
+                case "progress": {
+                  t.progress += value;
+                }
               }
-              case "progress": {
-                track.progress += value;
+            };
+
+            // 处理技能效果作用目标
+            effect.targets.map(target => {
+              switch (target) {
+                case "self": {
+                  addTrackProperty(currentTrack, target, value);
+                  break;
+                }
+                case "all": {
+                  this._inGameData.tracks.map(track => {
+                    addTrackProperty(track, target, value);
+                  });
+                  break;
+                }
+                case "others": {
+                  this._inGameData.tracks.map(track => {
+                    if (track !== currentTrack) {
+                      addTrackProperty(track, target, value);
+                    }
+                  });
+                  break;
+                }
+                case "random": {
+                  const randomTrack = randomIn(this._inGameData.tracks);
+                  addTrackProperty(randomTrack, target, value);
+                  break;
+                }
               }
-            }
+            });
           });
 
-          await schedule(this, description);
+          // 随机增加 2%-6% 基础进度
+          currentTrack.progress += getRandomIntInclusive(2, 6) + currentTrack.currentSpeed;
 
+          // 防止越界
+          if (currentTrack.progress < 0) {
+            currentTrack.progress = 0;
+          }
+
+          await schedule(this, description);
           await sleep(GameConfig.skillCastTime);
         }
       }

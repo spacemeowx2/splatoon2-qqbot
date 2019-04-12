@@ -1,6 +1,7 @@
 import { BaseBotModule, BotMessageEvent, BotModuleInitContext, BotMessageType, BotPostType } from "../interface";
 import { RacingSession, InteractionID, SessionStatus, TrackData } from "./horse-racing/racing-session";
 import { randomIn } from "../utils/helpers";
+import { cqDecode, cqEncode } from "../utils/cqcode";
 import util from "util";
 
 export class HorseRacing extends BaseBotModule {
@@ -26,6 +27,10 @@ export class HorseRacing extends BaseBotModule {
     }
 
     return session;
+  }
+
+  public closeSession(sessionContext: RacingSession) {
+    this.sessions.delete(sessionContext.interactionID().getID());
   }
 
   async sendToSession(session: RacingSession, text: string, atList: number[]) {
@@ -56,7 +61,7 @@ export class HorseRacing extends BaseBotModule {
   }
 
   onAcceptMessage(e: BotMessageEvent) {
-    const session = this.sessions.get(new InteractionID(e.groupId, e.userId).getID())
+    const session = this.sessions.get(new InteractionID(e.groupId, e.userId).getID());
     if (session) {
       session.onAcceptMessage(e.message, e.userId);
     }
@@ -97,7 +102,7 @@ export class HorseRacing extends BaseBotModule {
       // 游戏结束回调
       async (sessionContext: RacingSession, text: string) => {
         await this.sendToSession(session, text, []);
-        this.sessions.delete(sessionContext.interactionID().getID());
+        this.closeSession(sessionContext);
       },
       // 游戏完成回调
       async (sessionContext: RacingSession, tracks: TrackData[]) => {
@@ -110,7 +115,8 @@ export class HorseRacing extends BaseBotModule {
         `,
           []
         );
-        this.sessions.delete(sessionContext.interactionID().getID());
+
+        this.closeSession(sessionContext);
       }
     );
     return ''
