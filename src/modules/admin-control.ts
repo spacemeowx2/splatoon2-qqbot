@@ -117,6 +117,10 @@ export class AdminControl extends BaseBotModule {
     if (dict === undefined) {
       dict = {}
     }
+    const mids = this.bot.getModules().map(i => i.id)
+    if (!mids.includes(mid)) {
+      return '模块ID错误, 请确定ID是全英文字符'
+    }
     dict[groupId] = val
     this.enableStorage.set(mid, dict)
     return `${val ? '开启' : '关闭'} ${mid} 成功`
@@ -128,7 +132,7 @@ export class AdminControl extends BaseBotModule {
       if (!await this.isAdmin(groupId, userId)) {
         return
       }
-      const [cmd, arg1] = message.split(/\s+/)
+      const [cmd, arg1] = message.trim().split(/\s+/)
       if (cmd === '列出模块') {
         return this.listModules(groupId)
       } else if (cmd === '关闭模块') {
