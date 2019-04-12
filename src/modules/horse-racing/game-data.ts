@@ -53,7 +53,7 @@ export const CharacterData: Array<Character> = [
       },
       {
         name: "斗气化马",
-        descriptions: ["${char_name} 口中突然大喊 ${skill_name}，速度得到了大幅度提升。"],
+        descriptions: ["${char_icon} 口中突然大喊 ${skill_name}，速度得到了大幅度提升。"],
         effects: [
           {
             type: "speed",
