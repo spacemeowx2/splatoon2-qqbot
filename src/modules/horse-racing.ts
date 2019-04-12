@@ -15,7 +15,7 @@ export class HorseRacing extends BaseBotModule {
     const { bus } = ctx;
     // bus.registerPrivate(e => this.onMessage(e));
     bus.registerMessage([bus.groupTypeFilter], e => this.onAcceptMessage(e));
-    bus.registerStartsWith(".sm", e => this.onMessage(e));
+    bus.registerMessage([bus.atMeFilter, bus.startsWithFilter('.sm')], e => this.onMessage(e));
   }
 
   createSession(interactionID: InteractionID, type: BotMessageType) {
@@ -109,8 +109,9 @@ export class HorseRacing extends BaseBotModule {
         this.sessions.delete(sessionContext.interactionID().getID());
       }
     );
+    return ''
   }
   help() {
-    return "";
+    return "赛马游戏: @bot .sm 开始赛马游戏";
   }
 }
