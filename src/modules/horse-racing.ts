@@ -28,7 +28,7 @@ export class HorseRacing extends BaseBotModule {
     return session;
   }
 
-  sendToSession(session: RacingSession, text: string, atList: number[]) {
+  async sendToSession(session: RacingSession, text: string, atList: number[]) {
     if (text && text.length > 0) {
       if (session.sessionType() === BotMessageType.Group) {
         const atListStr =
@@ -40,7 +40,7 @@ export class HorseRacing extends BaseBotModule {
                 .join(" ")
             : "";
 
-        this.bot.sendGroupMessage(
+        return this.bot.sendGroupMessage(
           <number>session.interactionID().gid,
 
           // 判断是否需要 at 群成员
@@ -49,9 +49,10 @@ export class HorseRacing extends BaseBotModule {
           false
         );
       } else if (session.sessionType() === BotMessageType.Private) {
-        this.bot.sendPrivateMessage(<number>session.interactionID().userId, text);
+        return this.bot.sendPrivateMessage(<number>session.interactionID().userId, text);
       }
     }
+    return
   }
 
   onAcceptMessage(e: BotMessageEvent) {
@@ -100,7 +101,7 @@ export class HorseRacing extends BaseBotModule {
       },
       // 游戏完成回调
       async (sessionContext: RacingSession, tracks: TrackData[]) => {
-        this.sendToSession(
+        await this.sendToSession(
           sessionContext,
           `前三名选手分别是：
         🏆第一名：${tracks[0].character.icon}【${tracks[0].players.map(v => this.bot.atStr(v))}】

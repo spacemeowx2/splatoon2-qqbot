@@ -285,7 +285,7 @@ export class TSBot implements BotModule {
   send<T> (method: string, params?: Record<string, any>, options?: number | CQRequestOptions) {
     return this.bot<T>(method, params, options)
   }
-  sendPrivateMessage (qq: number, message: string, auto_escape = true) {
+  sendPrivateMessage (qq: number, message: string, auto_escape = true): Promise<void> {
     if (IsDebug) {
       message = `${DebugPrefix}${message}`
     }
@@ -295,7 +295,7 @@ export class TSBot implements BotModule {
       auto_escape
     })
   }
-  sendGroupMessage (gid: number, message: string, auto_escape = true) {
+  sendGroupMessage (gid: number, message: string, auto_escape = true): Promise<void> {
     if (IsDebug) {
       message = `${DebugPrefix}${message}`
     }
