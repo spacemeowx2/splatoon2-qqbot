@@ -1,5 +1,4 @@
-import { BaseBotModule, BotModuleInitContext, BotMessageType, BotModule } from '../interface'
-import { BotMessageEvent, BotRequestEvent, BotRequestType, BotRequestSubType, isBotMessageEvent, AnyFilter } from '../tsbot'
+import { BaseBotModule, BotModuleInitContext, BotMessageType, BotModule, BotRequestEvent, BotMessageEvent, AnyFilter, BotRequestType, BotRequestSubType, isBotMessageEvent } from '../interface'
 import { BotStorage } from '../storage'
 
 const RequestTimeout = 24 * 60 * 60 * 1000 // 1day
@@ -23,10 +22,10 @@ export class AdminControl extends BaseBotModule {
 
   init (ctx: BotModuleInitContext) {
     super.init(ctx)
-    const { bot, bus, storage } = ctx
+    const { bus, storage } = ctx
 
     this.enableStorage = storage.getChild('enable')
-    bus.bus.globalFilters.push(this.globalFilter)
+    this.bot.setGroupEnabledHandler(this.enabledFilter)
     bus.registerMessage([bus.privateFilter, this.adminFilter], e => this.onAdmin(e))
     bus.registerMessage([bus.privateFilter], e => this.onPrivate(e))
     bus.registerRequest([this.groupInviteFilter], e => this.onInvite(e))
@@ -210,7 +209,7 @@ export class AdminControl extends BaseBotModule {
     }
     return ret
   }
-  globalFilter: AnyFilter = (e, { module: m }) => {
+  enabledFilter: AnyFilter = (e, { module: m }) => {
     if (isBotMessageEvent(e)) {
       if (e.messageType === BotMessageType.Group) {
         let r = this.isModuleEnabled(e.groupId!, m)
@@ -233,8 +232,7 @@ export class AdminControl extends BaseBotModule {
 * 关闭模块 {QQ群号} {模块ID}
 * 开启模块 {QQ群号} {模块ID}`
     } else {
-      return `管理模块:
-管理员可使用的指令:
+      return `管理员可使用的指令:
 列出模块
 关闭模块 模块ID
 开启模块 模块ID`

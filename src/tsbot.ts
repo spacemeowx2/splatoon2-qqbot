@@ -1,86 +1,12 @@
 import CQWebSocket, { CQEvent, CQWebSocketOption, CQRequestOptions } from 'cq-websocket'
-import { BotModule, BotModuleInitContext } from './interface'
+import { BotModule, BotModuleInitContext, MessageListener, MessageFilter, RequestFilter, RequestListener, BotMessageType, MessageFilterListener, RequestFilterListener, MessageModifier, BotFilter, BotPostType, FilterListener, AnyFilter, BotMessageEvent, BotEvent, BotRequestEvent, BotEventMap, isBotMessageEvent } from './interface'
 import { BotStorageService } from './storage'
 import { BotFileService } from './file'
-import { cqGetString, cqParse, CQMessageList } from './utils/cqcode'
+import { cqGetString } from './utils/cqcode'
+export * from './interface'
 const DebugPrefix = 'debug '
 const IsDebug = !!process.env.BOT_DEBUG
 const ConfigPath = process.env.BOT_CONFIG_PATH || './config.json'
-
-export const enum BotPostType {
-  Message = 'message',
-  Request = 'request',
-  Any = 'any'
-}
-export const enum BotMessageType {
-  Group = 'group',
-  Private = 'private',
-  Discuss = 'discuss'
-}
-export const enum BotRequestType {
-  Friend = 'friend',
-  Group = 'group',
-}
-export const enum BotRequestSubType {
-  Add = 'add',
-  Invite = 'invite',
-}
-export interface BotEvent {
-  postType: BotPostType
-  selfId: number
-  time: number
-}
-export interface BotMessageEvent extends BotEvent {
-  postType: BotPostType.Message
-  groupId?: number
-  message: string,
-  messageId: number
-  messageType: BotMessageType
-  userId: number
-}
-export interface BotRequestEvent extends BotEvent {
-  postType: BotPostType.Request
-  requestType: BotRequestType
-  userId: number
-  comment: string
-  flag: string
-
-  subType?: BotRequestSubType
-  groupId?: number
-}
-
-interface BotEventMap {
-  [BotPostType.Message]: BotMessageEvent
-  [BotPostType.Request]: BotRequestEvent
-  [BotPostType.Any]: BotMessageEvent | BotRequestEvent
-}
-interface BotListenerReturnMap {
-  [BotPostType.Message]: string | void
-  [BotPostType.Request]: void
-  [BotPostType.Any]: string | void
-}
-
-type Promisable<T> = Promise<T> | T
-export type BotListener<T extends BotPostType> = (event: BotEventMap[T]) => Promisable<BotListenerReturnMap[T]>
-export type MessageListener = BotListener<BotPostType.Message>
-export type RequestListener = BotListener<BotPostType.Request>
-
-export type BotFilterContext = {
-  abort: (r: boolean) => void
-  module: BotModule
-}
-export type BotFilter<T extends BotPostType> = (event: BotEventMap[T], ctx: BotFilterContext) => boolean
-export type MessageFilter = BotFilter<BotPostType.Message>
-export type RequestFilter = BotFilter<BotPostType.Request>
-export type AnyFilter = BotFilter<BotPostType.Any>
-export interface FilterListener<T extends BotPostType> {
-  filters: BotFilter<T>[]
-  listener: BotListener<T>
-  module: BotModule
-}
-export type MessageFilterListener = FilterListener<BotPostType.Message>
-export type RequestFilterListener = FilterListener<BotPostType.Request>
-export type MessageModifier = (message: string) => string
 
 export class TSBotEventBus {
   constructor (public bus: BotEventBus, private module: BotModule) {
@@ -171,9 +97,7 @@ class BotEventBus {
     })
   }
 
-  protected runFilter<T extends BotPostType> (e: BotEventMap[T], listener: FilterListener<T>, def = true) {
-    const { filters, module } = listener
-    const allFilters: AnyFilter[] = [...this.globalFilters, ...filters] as any
+  getFilterResult<T extends BotPostType> (e: BotEventMap[T], allFilters: AnyFilter[], module: BotModule, def = true) {
     for (let f of allFilters) {
       let isAbort = false
       let abortResult: boolean
@@ -194,6 +118,11 @@ class BotEventBus {
       }
     }
     return def
+  }
+  protected runFilter<T extends BotPostType> (e: BotEventMap[T], listener: FilterListener<T>, def = true) {
+    const { filters, module } = listener
+    const allFilters: AnyFilter[] = [...this.globalFilters, ...filters] as any
+    return this.getFilterResult(e, allFilters, module, def)
   }
   protected async onMessage (e: CQEvent, c: Record<string, any>) {
     e.stopPropagation()
@@ -251,6 +180,7 @@ export class TSBot implements BotModule {
   private bus: BotEventBus
   private storage: BotStorageService = new BotStorageService(ConfigPath)
   private file = new BotFileService(process.env.BOT_FILE_ROOT || './storage/')
+  private groupEnabled?: MessageFilter
   isPro: boolean = false
   id = 'core'
   name = '核心模块'
@@ -258,7 +188,7 @@ export class TSBot implements BotModule {
 
   constructor (opt?: Partial<CQWebSocketOption>) {
     let globalFilters: AnyFilter[] = []
-    globalFilters.push(this.debugFilter)
+    globalFilters.push(this.debugFilter, this.tsbotFilter)
     const bot = new CQWebSocket(opt)
     this.bus = new BotEventBus(bot, globalFilters)
 
@@ -273,6 +203,22 @@ export class TSBot implements BotModule {
     })
 
     this.bot = bot
+  }
+  setGroupEnabledHandler (h: MessageFilter) {
+    if (this.groupEnabled) {
+      throw new Error(`Can't set the second GroupEnabledHandler`)
+    }
+    this.groupEnabled = h
+  }
+  tsbotFilter: AnyFilter = (e, ctx) => {
+    if (isBotMessageEvent(e)) {
+      if (this.groupEnabled) {
+        return this.groupEnabled(e, ctx)
+      }
+      return true
+    } else {
+      return true
+    }
   }
   async connect () {
     await this.storage.load()
@@ -394,12 +340,22 @@ export class TSBot implements BotModule {
     myBus.registerPrivate(e => this.onHelp(e))
   }
   protected onHelp (e: BotMessageEvent) {
-    return this.modules.map(m => {
-      const h = m.help(e)
-      if (h.length > 0) {
-        return `${m.name}:\n${m.help(e)}`
-      }
-    }).filter(s => s).join('\n\n')
+    let modules = this.modules
+    const { groupEnabled } = this
+    if (e.messageType === 'group' && groupEnabled) {
+      const allFilters: AnyFilter[] = [groupEnabled] as any
+      modules = modules.filter(m => this.bus.getFilterResult(
+        e,
+        allFilters,
+        m
+      ))
+    }
+    const ret = modules
+      .map(m => [m.name, m.help(e)])
+      .filter(([_, h]) => h.length > 0)
+      .map(([name, h]) => `${name}:\n${h}`)
+      .join('\n\n')
+    return ret
   }
 }
 
@@ -438,11 +394,4 @@ function CQRequest2BotEvent (c: Record<string, any>): BotRequestEvent | undefine
     groupId: c.group_id
   }
   return ret
-}
-export function isBotMessageEvent (e: BotEvent): e is BotMessageEvent {
-  return e.postType === BotPostType.Message
-}
-
-export function isBotRequestEvent (e: BotEvent): e is BotRequestEvent {
-  return e.postType === BotPostType.Request
 }
