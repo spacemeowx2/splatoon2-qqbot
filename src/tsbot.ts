@@ -285,24 +285,24 @@ export class TSBot implements BotModule {
   send<T> (method: string, params?: Record<string, any>, options?: number | CQRequestOptions) {
     return this.bot<T>(method, params, options)
   }
-  sendPrivateMessage (qq: number, message: string) {
+  sendPrivateMessage (qq: number, message: string, auto_escape = true) {
     if (IsDebug) {
       message = `${DebugPrefix}${message}`
     }
     return this.bot('send_private_msg', {
       user_id: qq,
       message,
-      auto_escape: true
+      auto_escape
     })
   }
-  sendGroupMessage (gid: number, message: string) {
+  sendGroupMessage (gid: number, message: string, auto_escape = true) {
     if (IsDebug) {
       message = `${DebugPrefix}${message}`
     }
     return this.bot('send_group_msg', {
       group_id: gid,
       message,
-      auto_escape: true
+      auto_escape: false
     })
   }
   getModules (): BotModule[] {

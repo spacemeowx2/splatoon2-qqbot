@@ -44,7 +44,9 @@ export class HorseRacing extends BaseBotModule {
           <number>session.interactionID().gid,
 
           // 判断是否需要 at 群成员
-          `${atListStr}${text}`
+          `${atListStr}${text}`,
+
+          false
         );
       } else if (session.sessionType() === BotMessageType.Private) {
         this.bot.sendPrivateMessage(<number>session.interactionID().userId, text);
