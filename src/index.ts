@@ -36,7 +36,7 @@ async function main () {
 
   bot.isPro = true
   bot.registerModule(adminControl)
-  bot.registerModule(new HorseRacing())
+  // bot.registerModule(new HorseRacing())
   bot.registerModule(new PersonalData())
   bot.registerModule(new AtAll())
   bot.registerModule(new PictureSender())
