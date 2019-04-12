@@ -15,3 +15,17 @@ export function exclude<T> (ary: T[], exc: T[]) {
 export function arrayBufferToBuffer (a: ArrayBuffer) {
   return Buffer.from(new Uint8Array(a))
 }
+
+export function getRandomIntInclusive (min: number, max: number) {
+  min = Math.ceil(min)
+  max = Math.floor(max)
+  return Math.floor(Math.random() * (max - min + 1)) + min
+}
+
+export function randomIn<T> (arr: T[]) {
+  return arr[Math.floor(Math.random() * arr.length)]
+}
+
+export function sleep (ms: number) {
+  return new Promise(res => setTimeout(res, ms))
+}
