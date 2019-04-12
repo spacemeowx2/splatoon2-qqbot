@@ -93,9 +93,12 @@ export class RacingSession {
             return;
           }
 
-          const joinPlayers = track.players;
+          // 已经选过则忽略
+          if (this._players.has(userid)) {
+            return
+          }
 
-          if (joinPlayers.indexOf(order) < 0) {
+          if (track.players.indexOf(order) < 0) {
             track.players.push(userid);
           }
 
