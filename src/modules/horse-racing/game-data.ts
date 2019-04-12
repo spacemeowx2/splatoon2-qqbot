@@ -48,7 +48,7 @@ export const CharacterData: Array<Character> = [
           {
             type: 'speed',
             targets: ['self'],
-            values: [-2, -4],
+            values: [-2, -3],
             suffixes: ['']
           }
         ]
@@ -56,13 +56,19 @@ export const CharacterData: Array<Character> = [
       {
         name: '超级砸地',
         descriptions: [
-          "${char_icon}使用了大招: ${skill_name}, 其他选手都没打中, 全场速度降低"
+          "${char_icon}使用了大招: ${skill_name}, 其他选手都没打中, 全场倒退, 自身速度增加"
         ],
         effects: [
           {
-            type: 'speed',
+            type: 'progress',
             targets: ['others'],
-            values: [-2],
+            values: [-2, -4, -5],
+            suffixes: ['']
+          },
+          {
+            type: 'speed',
+            targets: ['self'],
+            values: [4, 7, 10],
             suffixes: ['']
           }
         ]
