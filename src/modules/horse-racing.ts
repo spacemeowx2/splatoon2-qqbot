@@ -6,6 +6,7 @@ import util from "util";
 export class HorseRacing extends BaseBotModule {
   id = "horse-racing";
   name = "赛马游戏";
+  defaultEnable = false;
 
   private sessions: Map<string, RacingSession> = new Map<string, RacingSession>();
 
