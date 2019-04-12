@@ -14,6 +14,7 @@ import { Character, Skill } from "./model";
           * all: 作用于整个赛场
           * others: 作用于所有其他赛道目标
           * random: 随机一个目标
+          * others: 作用于所有其他赛道目标
         - value: 将从数组中随机取一个元素作为值
         - suffix: 长度需要和和value数组的长度一致，随机到的value的下标将会对应suffix中的图标索引
 */
@@ -34,6 +35,54 @@ export const SkillData: Skill[] = [
 ];
 
 export const CharacterData: Array<Character> = [
+  {
+    name: '乌贼',
+    icon: '🦑',
+    skills: [
+      {
+        name: '超级砸地',
+        descriptions: [
+          "${char_icon}使用了大招: ${skill_name}, 然而被打了下来, 进入了复活时间, 速度降低"
+        ],
+        effects: [
+          {
+            type: 'speed',
+            targets: ['self'],
+            values: [-2, -4],
+            suffixes: ['']
+          }
+        ]
+      },
+      {
+        name: '超级砸地',
+        descriptions: [
+          "${char_icon}使用了大招: ${skill_name}, 其他选手都没打中, 全场速度降低"
+        ],
+        effects: [
+          {
+            type: 'speed',
+            targets: ['others'],
+            values: [-2],
+            suffixes: ['']
+          }
+        ]
+      },
+      {
+        name: '老板催工',
+        descriptions: [
+          '🐻老板出现了！！, 拖走了作弊的${char_icon}并把它拖去工地打工',
+        ],
+        effects: [
+          {
+            type: 'progress',
+            targets: ['all'],
+            values: [-5],
+            suffixes: ['']
+          }
+        ]
+      }
+    ]
+  },
   {
     name: "蔡徐坤",
     icon: "👨",
