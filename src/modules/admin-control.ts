@@ -31,6 +31,7 @@ export class AdminControl extends BaseBotModule {
     bus.registerMessage([bus.privateFilter], e => this.onPrivate(e))
     bus.registerRequest([this.groupInviteFilter], e => this.onInvite(e))
     bus.registerMessage([bus.atMeFilter, this.adminFilter], e => (e.message.trim() === '群号') ? `群号: ${e.groupId!}` : undefined)
+    bus.registerMessage([bus.groupTypeFilter, bus.atMeFilter], e => this.onGroup(e))
   }
 
   onInvite (e: BotRequestEvent) {
@@ -104,6 +105,41 @@ export class AdminControl extends BaseBotModule {
       throw new Error('获取群信息失败, 请检查群号码')
     }
   }
+  private listModules (groupId: number) {
+    let out: string[] = ['ID  名称  是否开启']
+    for (let m of this.bot.getModules()) {
+      out.push(`${m.id}  ${m.name}  ${this.isModuleEnabled(groupId, m) ? `已开启` : `已关闭`}`)
+    }
+    return out.join('\n')
+  }
+  private setModuleEnable (groupId: number, mid: string, val: boolean) {
+    let dict = this.enableStorage.get(mid)
+    if (dict === undefined) {
+      dict = {}
+    }
+    dict[groupId] = val
+    this.enableStorage.set(mid, dict)
+    return `${val ? '开启' : '关闭'} ${mid} 成功`
+  }
+  async onGroup (e: BotMessageEvent) {
+    try {
+      let { message, userId } = e
+      const groupId = e.groupId!
+      if (!await this.isAdmin(groupId, userId)) {
+        return
+      }
+      const [cmd, arg1] = message.split(/\s+/)
+      if (cmd === '列出模块') {
+        return this.listModules(groupId)
+      } else if (cmd === '关闭模块') {
+        return this.setModuleEnable(groupId, arg1, false)
+      } else if (cmd === '开启模块') {
+        return this.setModuleEnable(groupId, arg1, true)
+      }
+    } catch (e) {
+      return
+    }
+  }
   async onPrivate (e: BotMessageEvent) {
     try {
       let { message, userId } = e
@@ -116,11 +152,7 @@ export class AdminControl extends BaseBotModule {
           return `你还不是该群成员`
         }
 
-        let out: string[] = ['ID  名称  是否开启']
-        for (let m of this.bot.getModules()) {
-          out.push(`${m.id}  ${m.name}  ${this.isModuleEnabled(groupId, m)}`)
-        }
-        return out.join('\n')
+        return this.listModules(groupId)
       } else if (message.startsWith('关闭模块') || message.startsWith('开启模块')) {
         let val = message.startsWith('开启模块')
         message = message.substr(4)
@@ -128,13 +160,7 @@ export class AdminControl extends BaseBotModule {
         let groupId = parseInt(args[0])
         let mid = args[1]
         if (await this.isAdmin(groupId, userId)) {
-          let dict = this.enableStorage.get(mid)
-          if (dict === undefined) {
-            dict = {}
-          }
-          dict[groupId] = val
-          this.enableStorage.set(mid, dict)
-          return `${val ? '开启' : '关闭'} ${mid} 成功`
+          return this.setModuleEnable(groupId, mid, val)
         } else {
           return '你没有权限(该群管理员权限)'
         }
@@ -203,7 +229,11 @@ export class AdminControl extends BaseBotModule {
 * 关闭模块 {QQ群号} {模块ID}
 * 开启模块 {QQ群号} {模块ID}`
     } else {
-      return ''
+      return `管理模块:
+管理员可使用的指令:
+列出模块
+关闭模块 模块ID
+开启模块 模块ID`
     }
   }
 }
