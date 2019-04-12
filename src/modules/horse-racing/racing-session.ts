@@ -7,6 +7,7 @@ export enum SessionStatus {
   Inactive, // 比赛未开始
   Ready, // 准备阶段
   Vote, // 选角色阶段
+  BeforeGame, // 即将进入比赛
   InGame // 正在比赛
 }
 
@@ -161,6 +162,7 @@ ${playerInfos}
 
     this._status = SessionStatus.Vote;
     await sleep(GameConfig.voteTime);
+    this._status = SessionStatus.BeforeGame;
 
     // 游戏人数为 0
     if (this._players.size === 0) {

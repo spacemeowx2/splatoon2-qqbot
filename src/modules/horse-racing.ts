@@ -1,7 +1,6 @@
 import { BaseBotModule, BotMessageEvent, BotModuleInitContext, BotMessageType, BotPostType } from "../interface";
 import { RacingSession, InteractionID, SessionStatus, TrackData } from "./horse-racing/racing-session";
 import { randomIn } from "../utils/helpers";
-import { cqDecode, cqEncode } from "../utils/cqcode";
 import util from "util";
 
 export class HorseRacing extends BaseBotModule {
