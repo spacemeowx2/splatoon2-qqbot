@@ -181,6 +181,7 @@ export class TSBot implements BotModule {
   private storage: BotStorageService = new BotStorageService(ConfigPath)
   private file = new BotFileService(process.env.BOT_FILE_ROOT || './storage/')
   private groupEnabled?: MessageFilter
+  blackList: number[] = []
   isPro: boolean = false
   id = 'core'
   name = '核心模块'
@@ -212,7 +213,10 @@ export class TSBot implements BotModule {
   }
   tsbotFilter: AnyFilter = (e, ctx) => {
     if (isBotMessageEvent(e)) {
-      if (this.groupEnabled) {
+    if (this.blackList.includes(e.userId)) {
+      return false
+    }
+    if (this.groupEnabled) {
         return this.groupEnabled(e, ctx)
       }
       return true

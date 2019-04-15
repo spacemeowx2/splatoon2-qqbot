@@ -34,6 +34,7 @@ async function main () {
   }
   const bot = new TSBot(opt)
 
+  bot.blackList = JSON.parse(process.env.TSBOT_BLACKLIST || '[]')
   bot.isPro = true
   bot.registerModule(adminControl)
   // bot.registerModule(new HorseRacing())
