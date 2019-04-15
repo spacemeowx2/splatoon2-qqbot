@@ -137,7 +137,7 @@ export class PersonalData extends BaseBotModule {
     return `个人档跨群保存, 仅支持文字或一张图片
 呼出个人档: @bot 个人档
 设置个人档: @bot 设置个人档 + 内容
-设置个人档: @bot 追加个人档 + 内容
+追加个人档: @bot 追加个人档 + 内容
 清空个人档: @bot 清空个人档`
   }
 }

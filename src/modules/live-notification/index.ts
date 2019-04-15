@@ -161,7 +161,7 @@ export class LiveNotification extends BaseBotModule {
     this.updateRooms()
   }
   cmdFilter (e: BotMessageEvent) {
-    const [ cmd, ...rest ] = e.message.split(' ')
+    const [ cmd, ...rest ] = e.message.split(/\s+/)
     if (cmd !== '直播提醒') {
       return false
     }
@@ -243,7 +243,7 @@ ${room.url}`)
   async onMessage (e: BotMessageEvent) {
     const { message } = e
     const groupId = e.groupId!
-    const splited = message.trim().split(' ')
+    const splited = message.trim().split(/\s+/)
 
     const cmd = splited[0]
     const isAdmin = await this.admin.isAdmin(e.groupId!, e.userId)

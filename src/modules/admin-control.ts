@@ -159,7 +159,7 @@ export class AdminControl extends BaseBotModule {
       } else if (message.startsWith('关闭模块') || message.startsWith('开启模块')) {
         let val = message.startsWith('开启模块')
         message = message.substr(4)
-        let args = message.split(' ').filter(i => i.length > 0)
+        let args = message.split(/\s+/).filter(i => i.length > 0)
         let groupId = parseInt(args[0])
         let mid = args[1]
         if (await this.isAdmin(groupId, userId)) {
