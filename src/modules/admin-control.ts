@@ -6,7 +6,9 @@ const RequestTimeoutStr = '1天'
 
 interface PendingRequest {
   expireAt: number
-  onApprove: Function
+  onApprove: () => void
+  onReject: (reason: string) => void
+  getDetail: () => Promise<string>
   raw: string
 }
 type ExcludeExpireAt<T> = {
@@ -33,11 +35,11 @@ export class AdminControl extends BaseBotModule {
     bus.registerMessage([bus.groupTypeFilter, bus.atMeFilter], e => this.onGroup(e))
   }
 
-  onInvite (e: BotRequestEvent) {
+  async onInvite (e: BotRequestEvent) {
     console.log('request.group.invite', e)
     let { flag, subType, userId, groupId, selfId } = e
 
-    this.generateRequest({
+    await this.generateRequest({
       onApprove: () => {
         this.bot.send('set_group_add_request', {
           flag,
@@ -45,10 +47,23 @@ export class AdminControl extends BaseBotModule {
           approve: true
         })
       },
+      onReject: (reason: string) => {
+        this.bot.send('set_group_add_request', {
+          flag,
+          sub_type: subType,
+          approve: false,
+          reason
+        })
+      },
+      getDetail: async () => {
+        return JSON.stringify(await this.bot.send('_get_group_info', {
+          group_id: groupId
+        }), null, 2)
+      },
       raw: JSON.stringify(e)
     }, `QQ: ${userId} 邀请 ${selfId} 进群 ${groupId}`)
   }
-  onAdmin (e: BotMessageEvent): void | string {
+  onAdmin (e: BotMessageEvent) {
     let { message } = e
     if (message === 'exit') {
       return this.bot.exit()
@@ -65,6 +80,32 @@ export class AdminControl extends BaseBotModule {
           res.onApprove()
           return '已接受'
         }
+      } else {
+        return '未找到ID, 可能已经同意或超时'
+      }
+    } else if (message.startsWith('拒绝')) {
+      const [pre, reason] = message.split(/\s+/)
+      if (!reason) {
+        return '请输入拒绝理由'
+      }
+      let id = parseInt(pre.substring(2))
+      let res = this.requestMap.get(id)
+      if (res) {
+        this.requestMap.delete(id)
+        if (res.expireAt < Date.now()) {
+          return '该请求已超时'
+        } else {
+          res.onReject(reason)
+          return '已拒绝'
+        }
+      } else {
+        return '未找到ID, 可能已经同意或超时'
+      }
+    } else if (message.startsWith('详情')) {
+      let id = parseInt(message.substring(2))
+      let res = this.requestMap.get(id)
+      if (res) {
+        return res.getDetail()
       } else {
         return '未找到ID, 可能已经同意或超时'
       }
@@ -173,9 +214,9 @@ export class AdminControl extends BaseBotModule {
     }
   }
 
-  sendToAdmin (message: string) {
+  async sendToAdmin (message: string) {
     for (let qq of this.adminQQ) {
-      this.bot.sendPrivateMessage(qq, message)
+      await this.bot.sendPrivateMessage(qq, message)
     }
   }
 
@@ -193,7 +234,7 @@ export class AdminControl extends BaseBotModule {
         break
       }
     }
-    this.sendToAdmin(`${description} 回复 "同意${id}" 接受邀请, ${RequestTimeoutStr}超时`)
+    return this.sendToAdmin(`${description} 回复 "同意${id}" 接受邀请, ${RequestTimeoutStr}超时`)
   }
 
   isModuleEnabled (groupId: number, m: BotModule) {
