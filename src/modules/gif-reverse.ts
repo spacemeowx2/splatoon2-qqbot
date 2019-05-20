@@ -59,7 +59,6 @@ export class GifReverse extends BaseBotModule {
           }
         })
         const data = arrayBufferToBuffer(resp.data)
-        console.log(data.byteLength)
         if (
           (data.readInt32BE(0) === 0x47494638) &&
             (data.readInt16BE(4) === 0x3961 || data.readInt16BE(4) === 0x3761)) {
@@ -85,7 +84,7 @@ export class GifReverse extends BaseBotModule {
       if (!gif && lastMessage) {
         gif = await this.getGif(lastMessage)
       }
-      console.log('get gif', gif, message, lastMessage)
+      console.log(groupId, 'get gif', gif, message, lastMessage, 'from')
       if (gif) {
         try {
           const reversed = await getReverse(gif)
