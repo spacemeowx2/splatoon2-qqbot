@@ -5,8 +5,6 @@ import { arrayBufferToBuffer } from '../utils/helpers'
 import { spawn } from 'child_process'
 
 async function getReverse (url: string): Promise<Buffer> {
-  // ffmpeg -i demo.gif -filter_complex "[0:v]reverse,fifo[r];[0:v]palettegen=stats_mode=single[PAL];[r][PAL] paletteuse=new=1" out.gif
-  // ffmpeg -i - -filter_complex "[0:v]reverse,fifo[r];[0:v]palettegen=stats_mode=single[PAL];[r][PAL] paletteuse=new=1" -f gif -
   const ffmpeg = spawn('ffmpeg', [
     '-i', url,
     '-filter_complex', '[0:v]reverse,fifo[r];[0:v]palettegen=stats_mode=single[PAL];[r][PAL] paletteuse=new=1',
@@ -87,10 +85,17 @@ export class GifReverse extends BaseBotModule {
       if (!gif && lastMessage) {
         gif = await this.getGif(lastMessage)
       }
-      console.log('get gif', gif)
+      console.log('get gif', gif, message, lastMessage)
       if (gif) {
         try {
           const reversed = await getReverse(gif)
+          if (reversed.byteLength > 10 * 1024 * 1024) {
+            // bigger than 10MB
+            return cqStringify([
+              new CQCode('at', { qq: e.userId.toString() }),
+              '生成的图片太大啦, 发不出去...'
+            ])
+          }
           return cqStringify([
             new CQCode('at', { qq: e.userId.toString() }),
             new CQCode('image', {
