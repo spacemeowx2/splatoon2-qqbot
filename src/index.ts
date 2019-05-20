@@ -12,6 +12,7 @@ import { PictureSender } from './modules/pic-sender'
 import { AtAll } from './modules/at-all'
 import { PersonalData } from './modules/personal-data'
 import { HorseRacing } from './modules/horse-racing'
+import { GifReverse } from './modules/gif-reverse'
 
 async function main () {
   const access_token = process.env.CQ_ACCESS_TOKEN
@@ -47,6 +48,7 @@ async function main () {
   bot.registerModule(new DingGG())
   bot.registerModule(new Priva())
   bot.registerModule(new LiveNotification())
+  bot.registerModule(new GifReverse())
   if (process.env.TULING123_TOKEN) {
     bot.registerModule(AIChat(ChatProvider.Tuling123, {
       apiKey: process.env.TULING123_TOKEN

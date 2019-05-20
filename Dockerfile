@@ -10,14 +10,15 @@ RUN apk add --no-cache \
     jpeg-dev \
     pango-dev \
     giflib-dev \
-    zeromq-dev
+    zeromq-dev \
+    tzdata \
+    ffmpeg
+
+RUN cp /usr/share/zoneinfo/Asia/Shanghai /etc/localtime
 
 COPY package.json /
 
 RUN npm install
-
-RUN apk add --no-cache tzdata
-RUN cp /usr/share/zoneinfo/Asia/Shanghai /etc/localtime
 
 VOLUME [ "/code" ]
 WORKDIR /code
