@@ -7,7 +7,7 @@ import { spawn } from 'child_process'
 async function getReverse (url: string): Promise<Buffer> {
   const ffmpeg = spawn('ffmpeg', [
     '-i', url,
-    '-filter_complex', '[0:v]reverse,fifo[r];[0:v]palettegen=stats_mode=single[PAL];[r][PAL] paletteuse=new=1',
+    '-filter_complex', '[0:v]reverse,fifo[r];[0:v]palettegen[PAL];[r][PAL] paletteuse',
     '-f', 'gif',
     'pipe:1'
   ])
