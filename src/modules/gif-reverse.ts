@@ -3,25 +3,28 @@ import { cqGetString, cqParse, CQCode, cqStringify } from '../utils/cqcode'
 import axios from 'axios'
 import { arrayBufferToBuffer } from '../utils/helpers'
 import { spawn } from 'child_process'
+import { bufferToStream } from '../utils/bufferToStream'
 
-async function getReverse (url: string): Promise<Buffer> {
-  const ffmpeg = spawn('ffmpeg', [
-    '-i', url,
-    '-filter_complex', '[0:v]reverse,fifo[r];[0:v]palettegen[PAL];[r][PAL] paletteuse',
-    '-f', 'gif',
-    'pipe:1'
+async function getReverse (gif: Buffer): Promise<Buffer> {
+  const im = spawn('convert', [
+    '-',
+    '-coalesce',
+    '-reverse',
+    '-layers', 'OptimizePlus',
+    '-'
   ])
   let stdout: Buffer[] = []
   let stderr = ''
-  ffmpeg.stderr.setEncoding('utf-8')
-  ffmpeg.stdout.on('data', i => stdout.push(i))
-  ffmpeg.stderr.on('data', i => stderr += i)
+  im.stderr.setEncoding('utf-8')
+  im.stdout.on('data', i => stdout.push(i))
+  im.stderr.on('data', i => stderr += i)
   if (stderr) {
-    // console.error(stderr)
+    console.error(stderr)
   }
+  bufferToStream(gif).pipe(im.stdin)
   const code = await new Promise<number>((resolve, reject) => {
-    ffmpeg.on('error', reject)
-    ffmpeg.on('close', resolve)
+    im.on('error', reject)
+    im.on('close', resolve)
   })
   if (code === 0) {
     return Buffer.concat(stdout)
@@ -87,7 +90,10 @@ export class GifReverse extends BaseBotModule {
       console.log(groupId, 'get gif', gif, message, lastMessage, 'from')
       if (gif) {
         try {
-          const reversed = await getReverse(gif)
+          const gifBuf = await axios.get<Buffer>(gif, {
+            responseType: 'arraybuffer'
+          })
+          const reversed = await getReverse(gifBuf.data)
           if (reversed.byteLength > 10 * 1024 * 1024) {
             // bigger than 10MB
             return cqStringify([

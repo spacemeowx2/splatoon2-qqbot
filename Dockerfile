@@ -20,5 +20,7 @@ COPY package.json /
 
 RUN npm install
 
+RUN apk add --no-cache imagemagick
+
 VOLUME [ "/code" ]
 WORKDIR /code
