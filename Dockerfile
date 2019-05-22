@@ -10,17 +10,14 @@ RUN apk add --no-cache \
     jpeg-dev \
     pango-dev \
     giflib-dev \
-    zeromq-dev \
     tzdata \
-    ffmpeg
+    imagemagick
 
 RUN cp /usr/share/zoneinfo/Asia/Shanghai /etc/localtime
 
 COPY package.json /
 
-RUN npm install
-
-RUN apk add --no-cache imagemagick
+RUN npm install --verbose
 
 VOLUME [ "/code" ]
 WORKDIR /code

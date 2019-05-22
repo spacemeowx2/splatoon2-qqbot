@@ -252,7 +252,7 @@ export class TSBot implements BotModule {
     return this.bot('send_group_msg', {
       group_id: gid,
       message,
-      auto_escape: false
+      auto_escape
     })
   }
   getModules (): BotModule[] {

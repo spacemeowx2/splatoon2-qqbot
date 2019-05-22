@@ -87,13 +87,15 @@ export class GifReverse extends BaseBotModule {
       if (!gif && lastMessage) {
         gif = await this.getGif(lastMessage)
       }
-      console.log(groupId, 'get gif', gif, message, lastMessage, 'from')
+      console.log(groupId, 'get gif', gif, message, lastMessage)
       if (gif) {
         try {
           const gifBuf = await axios.get<Buffer>(gif, {
             responseType: 'arraybuffer'
           })
+          console.log(groupId, 'got gif, size:', gifBuf.data.byteLength)
           const reversed = await getReverse(gifBuf.data)
+          console.log(groupId, 'reversed', reversed.byteLength)
           if (reversed.byteLength > 10 * 1024 * 1024) {
             // bigger than 10MB
             return cqStringify([

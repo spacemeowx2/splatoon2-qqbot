@@ -11,14 +11,14 @@ RUN apk add --no-cache \
     pango-dev \
     giflib-dev \
     tzdata \
-    ffmpeg
+    imagemagick
 
 RUN cp /usr/share/zoneinfo/Asia/Shanghai /etc/localtime
 
 RUN mkdir /code
 WORKDIR /code
 COPY ./package.json /code
-RUN npm install
+RUN npm install --verbose
 
 COPY . /code
 

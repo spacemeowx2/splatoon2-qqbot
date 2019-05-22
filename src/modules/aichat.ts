@@ -102,9 +102,10 @@ class QQAI implements ChatBackend {
       time_stamp: ts,
       nonce_str: nonce,
     }
-    const signStr = `${this.querystring(data)}&app_key=${this.appKey}`
+    const dataStr = this.querystring(data)
+    const signStr = `${dataStr}&app_key=${this.appKey}`
 
-    return `${signStr}&sign=${this.md5(signStr)}`
+    return `${dataStr}&sign=${this.md5(signStr)}`
   }
   private querystring (data: Record<string, string>) {
     return Object.keys(data).sort().map(k => `${k}=${this.php_urlencode(data[k])}`).join('&')
