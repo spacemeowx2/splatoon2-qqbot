@@ -11,9 +11,17 @@ const readFile = promisify(readFileAsync)
 const dataPath = path.resolve(__dirname, '..', '..', 'data')
 const splatoon2Data: Splatoon2Data = require(path.join(dataPath, 'splatoon2-data.json'))
 
-registerFont(path.join(__dirname, '../../font/DroidSansFallback.ttf'), {
+registerFont(path.join(__dirname, '../../fonts/DroidSansFallback.ttf'), {
   family: 'Roboto'
 })
+registerFont(path.join(__dirname, '../../fonts/Paintball_Beta_4a.otf'), {
+  family: 'Paintball'
+})
+registerFont(path.join(__dirname, '../../fonts/HaiPaiQiangDiaoGunShiJian-2.otf'), {
+  family: 'HaiPai'
+})
+
+const STAGE_STYLE = 0
 
 export interface S2Stage {
   id: string
@@ -40,6 +48,13 @@ export interface S2Weapon {
 export interface Splatoon2Data {
   weapons: S2Weapon[]
   stages: S2Stage[]
+}
+
+interface Rect {
+  x: number
+  y: number
+  w: number
+  h: number
 }
 
 interface RandomContext {
@@ -70,6 +85,13 @@ interface Rule {
   }
 }
 
+type StageTypes = 'league' | 'regular' | 'gachi'
+
+const colorMap: Record<StageTypes, string> = {
+  regular: '#19d719',
+  gachi: '#e3562c',
+  league: '#f02d7d'
+}
 interface Schedules {
   league: Rule[]
   regular: Rule[]
@@ -189,11 +211,115 @@ export class Splatoon2 extends BaseBotModule {
   getURL (image: string): string {
     return `https://splatoon2.ink/assets/splatnet${image}`
   }
-  async drawLine (ctx: CanvasRenderingContext2D, rule: Rule, ruleName: string, x: number, y: number) {
-    ctx.fillText(ruleName, 5, y)
+  async drawRuleBackground (ctx: CanvasRenderingContext2D, rect: Rect, color: string) {
+    const patW = 30, patH = 30
+    const { x, y, w, h } = rect
+    const patCanvas = new Canvas(patW, patH)
+    const patCtx = patCanvas.getContext('2d')
 
-    await this.drawImage(ctx, rule.stage_a.image, 5 + x, y, 120, 69, 5)
-    await this.drawImage(ctx, rule.stage_b.image, 5 + x + 120 + 5, y, 120, 69, 5)
+    patCtx.fillStyle = color
+    patCtx.fillRect(0, 0, patW, patH)
+
+    patCtx.fillStyle = 'rgba(0,0,0,0.1)'
+
+    patCtx.beginPath()
+    patCtx.moveTo(0, 0)
+    patCtx.lineTo(patW / 2, 0)
+    patCtx.lineTo(patW, patH / 2)
+    patCtx.lineTo(patW, patH)
+    patCtx.closePath()
+    patCtx.fill()
+
+    patCtx.beginPath()
+    patCtx.moveTo(0, patH / 2)
+    patCtx.lineTo(patW / 2, patH)
+    patCtx.lineTo(0, patH)
+    patCtx.closePath()
+    patCtx.fill()
+
+    this.roundPath(ctx, () => {
+      const pat = ctx.createPattern(patCanvas)
+      ctx.fillStyle = pat
+      ctx.fillRect(x, y, w, h)
+    }, rect, 10)
+  }
+  async drawFirstRule (ctx: CanvasRenderingContext2D, stageType: StageTypes, rule: Rule, ruleName: string, x: number, y: number, t1: string, t2: string) {
+    const w = 271
+    const h = 105
+    const marginLeft = 15
+    const rect: Rect = {
+      x,
+      y,
+      w,
+      h
+    }
+    ctx.save()
+    this.drawRuleBackground(ctx, rect, colorMap[stageType])
+    ctx.fillStyle = '#FFF'
+    ctx.fillText(ruleName, marginLeft + x + 10, y + 5)
+
+    ctx.font = '14px Paintball'
+    ctx.fillText(t1, marginLeft + x + 80, y + 10)
+    {
+      ctx.save()
+      ctx.translate(marginLeft + x + 5, y + 30)
+      ctx.rotate(Math.PI / 2)
+      ctx.fillText(t2, 0, 0)
+      ctx.restore()
+    }
+
+    const r1 = await this.drawImage(ctx, rule.stage_a.image, {
+      x: marginLeft + 5 + x,
+      y: y + 33,
+      w: 120,
+      h: 69
+    }, 5)
+    const r2 = await this.drawImage(ctx, rule.stage_b.image, {
+      x: marginLeft + 5 + x + 120 + 5,
+      y: y + 33,
+      w: 120,
+      h: 69
+    }, 5)
+    await this.drawRuleIcon(ctx, stageType, {
+      x: r1.x,
+      y: r1.y,
+      w: r2.x + r2.w - r1.x,
+      h: r1.h
+    })
+    ctx.restore()
+    return rect
+  }
+  async drawRule (ctx: CanvasRenderingContext2D, stageType: StageTypes, rule: Rule, ruleName: string, x: number, y: number) {
+    ctx.save()
+    const w = 132, h = 185
+    const rect: Rect = { x, y, w, h }
+    this.drawRuleBackground(ctx, rect, colorMap[stageType])
+    ctx.fillStyle = '#FFF'
+    ctx.fillText(ruleName, x + 8, y + 5)
+
+    this.roundPath(ctx, () => {
+      ctx.fillStyle = 'rgba(0,0,0,0.7)'
+      ctx.fillRect(x, y + 30, w, h - 30)
+    }, rect, 10)
+    const r1 = await this.drawImage(ctx, rule.stage_a.image, {
+      x: x + 5,
+      y: y + 35,
+      w: 120,
+      h: 69
+    }, 5)
+    const r2 = await this.drawImage(ctx, rule.stage_b.image, {
+      x: x + 5,
+      y: y + 35 + 75,
+      w: 120,
+      h: 69
+    }, 5)
+    await this.drawRuleIcon(ctx, stageType, {
+      x: r1.x,
+      y: r1.y,
+      w: r1.w,
+      h: r2.y + r2.h - r1.y
+    })
+    ctx.restore()
   }
   getTime (d: Date) {
     let h = d.getHours().toString()
@@ -207,16 +333,39 @@ export class Splatoon2 extends BaseBotModule {
     return `${h}:${m}`
   }
   async drawSchedule (s: Schedule) {
-    const [canvas, ctx] = this.getCanvas(355, 258)
-
-    const ruleNameWidth = 100
-    const height = 69 + 5
-    await this.drawLine(ctx, s.regular, '涂地', ruleNameWidth, 5),
-    await this.drawLine(ctx, s.gachi, `单排(${RuleTranslate[s.gachi.rule.key]})`, ruleNameWidth, 5 + height),
-    await this.drawLine(ctx, s.league, `组排(${RuleTranslate[s.league.rule.key]})`, ruleNameWidth, 5 + height * 2)
+    let w: number, h: number
+    if (STAGE_STYLE) {
+      w = 415
+      h = 220
+    } else {
+      w = 280
+      h = 305
+    }
+    const [canvas, ctx] = this.getCanvas(w, h)
     const timeStart = new Date(s.regular.start_time * 1000)
     const timeEnd = new Date(s.regular.end_time * 1000)
-    ctx.fillText(`北京时间: ${this.getTime(timeStart)} - ${this.getTime(timeEnd)}`, 5, 5 + height * 3)
+    const dif = moment.unix(s.regular.end_time).diff(moment())
+
+    if (STAGE_STYLE) {
+      const ruleWidth = 132
+      const ruleHeight = 185
+      const ruleTop = 5
+      await this.drawRule(ctx, 'regular', s.regular, '涂地', 5, ruleTop),
+      await this.drawRule(ctx, 'gachi', s.gachi, `单排(${RuleTranslate[s.gachi.rule.key]})`, 5 + (5 + ruleWidth), ruleTop),
+      await this.drawRule(ctx, 'league', s.league, `组排(${RuleTranslate[s.league.rule.key]})`, 5 + (5 + ruleWidth) * 2, ruleTop)
+
+      ctx.font = '14px Paintball, Roboto'
+      ctx.fillText(`北京时间: ${this.getTime(timeStart)} - ${this.getTime(timeEnd)}`, 15, 5 + ruleHeight + 5)
+      ctx.fillText(`剩余时间: ${this.difTimeToStr(dif)}`, 245, 5 + ruleHeight + 5)
+    } else {
+      const ruleWidth = 132
+      const ruleHeight = 185
+      const t1 = `北京时间: ${this.getTime(timeStart)} - ${this.getTime(timeEnd)}`
+      const t2 = this.difTimeToStr(dif)
+      const {y, h} = await this.drawFirstRule(ctx, 'regular', s.regular, '涂地', 5, 5, t1, t2)
+      await this.drawRule(ctx, 'gachi', s.gachi, `单排(${RuleTranslate[s.gachi.rule.key]})`, 5, y + h + 5),
+      await this.drawRule(ctx, 'league', s.league, `组排(${RuleTranslate[s.league.rule.key]})`, 5 + (5 + ruleWidth), y + h + 5)
+    }
 
     return canvas.toBuffer('image/png').toString('base64')
   }
@@ -229,7 +378,12 @@ export class Splatoon2 extends BaseBotModule {
     ]
     ctx.fillText(`${moment.unix(s.start_time).format('MM-DD HH:mm')} - ${moment.unix(s.end_time).format('MM-DD HH:mm')}`, 5, top)
 
-    await this.drawImage(ctx, s.stage.image, 5, top + 25, 120, 67, 5)
+    await this.drawImage(ctx, s.stage.image, {
+      x: 5,
+      y: top + 25,
+      w: 120,
+      h: 67
+    }, 5)
 
     let weaponXY = [5 + 120 + 5, top + 25]
     for (let i = 0; i < 4; i++) {
@@ -241,8 +395,27 @@ export class Splatoon2 extends BaseBotModule {
         console.error(s.weapons[i])
         throw new Error()
       }
-      await this.drawImage(ctx, w.image, weaponXY[0] + xy[i][0], weaponXY[1] + xy[i][1], 30, 30)
+      await this.drawImage(ctx, w.image, {
+        x: weaponXY[0] + xy[i][0],
+        y: weaponXY[1] + xy[i][1],
+        w: 30,
+        h: 30
+      })
     }
+  }
+  difTimeToStr (dif: number) {
+    let diff = Math.floor(dif / 1000 / 60) // minutes
+    const minutes = diff % 60
+    diff -= minutes
+    diff = ~~(diff / 60)
+    const hours = diff % 24
+    diff -= hours
+    diff = ~~(diff / 24)
+    const days = diff
+    const hideZero = (n: number, post: string) => n === 0 ? '' : n.toString() + post
+    const ary = [hideZero(days, 'd'), hideZero(hours, 'h'), hideZero(minutes, 'm')]
+
+    return ary.filter(i => i.length > 0).join(' ')
   }
   async drawCoopSchedule (s: CoopSchedules) {
     const now = Math.floor(Date.now() / 1000)
@@ -258,17 +431,8 @@ export class Splatoon2 extends BaseBotModule {
       dif = moment.unix(end_time).diff(moment())
       time = '离结束还有'
     }
-    let diff = Math.floor(dif / 1000 / 60) // minutes
-    const minutes = diff % 60
-    diff -= minutes
-    diff = ~~(diff / 60)
-    const hours = diff % 24
-    diff -= hours
-    diff = ~~(diff / 24)
-    const days = diff
-    const hideZero = (n: number, post: string) => n === 0 ? '' : n.toString() + post
 
-    time = `${time} ${hideZero(days, 'd')} ${hideZero(hours, 'h')} ${hideZero(minutes, 'm')}`
+    time = `${time} ${this.difTimeToStr(dif)}`
 
     ctx.fillText(`${time}`, 5, 5)
     await this.drawCoopLine(ctx, details[0], 5 + 25)
@@ -277,9 +441,9 @@ export class Splatoon2 extends BaseBotModule {
     return canvas.toBuffer('image/png').toString('base64')
   }
   async drawWeapon (ctx: CanvasRenderingContext2D, w: S2Weapon, x: number, y: number) {
-    await this.drawImage(ctx, w.image, x, y, 65, 65)
-    await this.drawImage(ctx, w.sub.image_a, x + 70, y, 30, 30)
-    await this.drawImage(ctx, w.special.image_a, x + 70, y + 30 + 5, 30, 30)
+    await this.drawImage(ctx, w.image, { x, y, w: 65, h: 65})
+    await this.drawImage(ctx, w.sub.image_a, { x: x + 70, y, w: 30, h: 30 })
+    await this.drawImage(ctx, w.special.image_a, { x: x + 70, y: y + 30 + 5, w: 30, h: 30 })
   }
   async drawRandomWeapon (rctx: RandomContext) {
     const [canvas, ctx] = this.getCanvas(232, 310, '#bfbfbf')
@@ -312,7 +476,8 @@ export class Splatoon2 extends BaseBotModule {
     return canvas.toBuffer('image/png').toString('base64')
   }
   // image: "/image/xxxx.png"
-  async drawImage(ctx: CanvasRenderingContext2D, image: string, x: number, y: number, w: number, h: number, r = 0) {
+  async drawImage(ctx: CanvasRenderingContext2D, image: string, rect: Rect, r = 0) {
+    const { x, y, w, h } = rect
     const dataFile = path.join(dataPath, image)
     let img: Image
 
@@ -323,6 +488,24 @@ export class Splatoon2 extends BaseBotModule {
       img = await loadImage(await this.getImage(this.getURL(image)))
     }
 
+    this.roundPath(ctx, () => {
+      ctx.drawImage(img, x, y, w, h)
+    }, rect, r)
+    return rect
+  }
+  async drawRuleIcon(ctx: CanvasRenderingContext2D, type: StageTypes, rect: Rect) {
+    const imgPath = path.join(dataPath, `/images/stage_types/${type}.png`)
+    const img = await loadImage(await readFile(imgPath))
+    const drawRect: Rect = {
+      x: rect.x + (rect.w - img.width) / 2,
+      y: rect.y + (rect.h - img.height) / 2,
+      w: img.width,
+      h: img.height
+    }
+    ctx.drawImage(img, drawRect.x, drawRect.y)
+    return drawRect
+  }
+  private roundPath (ctx: CanvasRenderingContext2D, cb: Function, { x, y, w, h }: Rect, r: number) {
     ctx.save()
     if (r > 0) {
       ctx.beginPath()
@@ -334,7 +517,7 @@ export class Splatoon2 extends BaseBotModule {
       ctx.closePath()
       ctx.clip()
     }
-    ctx.drawImage(img, x, y, w, h)
+    cb()
     ctx.restore()
   }
   async getImage (url: string) {
@@ -415,7 +598,7 @@ export class Splatoon2 extends BaseBotModule {
     ctx.fillStyle = bg
     ctx.fillRect(0, 0, canvas.width, canvas.height)
     ctx.fillStyle = '#000'
-    ctx.font = '18px Roboto'
+    ctx.font = '18px HaiPai, Roboto'
     ctx.textBaseline = 'top';
     return [canvas, ctx]
   }
