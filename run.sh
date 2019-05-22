@@ -1,2 +1,2 @@
-source ./env
+source ./.env
 docker-compose up --build

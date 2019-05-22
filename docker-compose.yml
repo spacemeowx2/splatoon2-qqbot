@@ -6,6 +6,7 @@ services:
     volumes:
       - "./deps/splatoon-privas:/code"
     command: python /code/src/start_rpc.py
+    network_mode: host
     ports:
       - 4242
   dev:
@@ -14,6 +15,7 @@ services:
       - ".:/code"
     depends_on:
       - priva
+    network_mode: host
     command: npm run dev
     environment:
       - CQ_HOST=${CQ_HOST}
@@ -22,5 +24,5 @@ services:
       - QQAI_APPID=${QQAI_APPID}
       - QQAI_APPKEY=${QQAI_APPKEY}
       - BOT_DEBUG=true
-      - PRIVA_HOST=priva:4242
+      - PRIVA_HOST=${PRIVA_HOST}
       - DISABLE_SHARE=${DISABLE_SHARE}

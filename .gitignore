@@ -2,7 +2,7 @@ node_modules/
 package-lock.json
 dist/
 .DS_Store
-env
+.env
 env.example
 config.json
 run.bat
