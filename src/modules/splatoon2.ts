@@ -1,6 +1,6 @@
 import { BaseBotModule, BotMessageEvent, BotMessageType, BotModuleInitContext } from '../interface'
 import axios from 'axios'
-import { createCanvas, registerFont, Canvas, loadImage, Image } from 'canvas'
+import { createCanvas, registerFont, Canvas, loadImage, Image, CanvasRenderingContext2D } from 'canvas'
 import path from 'path'
 import moment from 'moment'
 import { stat as statAsync, readFile as readFileAsync } from 'fs'
@@ -330,7 +330,7 @@ export class Splatoon2 extends BaseBotModule {
       ctx.closePath()
       ctx.clip()
     }
-    ctx.drawImage(img as any, x, y, w, h)
+    ctx.drawImage(img, x, y, w, h)
     ctx.restore()
   }
   async getImage (url: string) {
