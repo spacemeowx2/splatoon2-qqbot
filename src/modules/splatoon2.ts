@@ -11,6 +11,10 @@ const readFile = promisify(readFileAsync)
 const dataPath = path.resolve(__dirname, '..', '..', 'data')
 const splatoon2Data: Splatoon2Data = require(path.join(dataPath, 'splatoon2-data.json'))
 
+registerFont(path.join(__dirname, '../../font/DroidSansFallback.ttf'), {
+  family: 'Roboto'
+})
+
 export interface S2Stage {
   id: string
   name: string
@@ -406,9 +410,6 @@ export class Splatoon2 extends BaseBotModule {
   }
   protected getCanvas (width: number, height: number, bg: string = '#FFF'): [Canvas, CanvasRenderingContext2D] {
     const canvas = createCanvas(width, height)
-    registerFont(path.join(__dirname, '../../font/DroidSansFallback.ttf'), {
-      family: 'Roboto'
-    })
     const ctx = canvas.getContext('2d')
     if (!ctx) throw new Error('2d Context not found')
     ctx.fillStyle = bg
