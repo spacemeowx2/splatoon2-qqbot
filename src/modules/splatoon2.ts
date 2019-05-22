@@ -1,6 +1,6 @@
 import { BaseBotModule, BotMessageEvent, BotMessageType, BotModuleInitContext } from '../interface'
 import axios from 'axios'
-import Canvas, { Font, Image, CanvasNonStandard } from 'canvas'
+import { createCanvas, registerFont, Canvas, loadImage, Image } from 'canvas'
 import path from 'path'
 import moment from 'moment'
 import { stat as statAsync, readFile as readFileAsync } from 'fs'
@@ -214,7 +214,7 @@ export class Splatoon2 extends BaseBotModule {
     const timeEnd = new Date(s.regular.end_time * 1000)
     ctx.fillText(`北京时间: ${this.getTime(timeStart)} - ${this.getTime(timeEnd)}`, 5, 5 + height * 3)
 
-    return canvas.toBuffer('image/jpeg').toString('base64')
+    return canvas.toBuffer('image/png').toString('base64')
   }
   async drawCoopLine (ctx: CanvasRenderingContext2D, s: CoopSchedule, top: number) {
     const xy = [
@@ -270,7 +270,7 @@ export class Splatoon2 extends BaseBotModule {
     await this.drawCoopLine(ctx, details[0], 5 + 25)
     await this.drawCoopLine(ctx, details[1], 5 + 25 + 25 + 67 + 5)
 
-    return canvas.toBuffer('image/jpeg').toString('base64')
+    return canvas.toBuffer('image/png').toString('base64')
   }
   async drawWeapon (ctx: CanvasRenderingContext2D, w: S2Weapon, x: number, y: number) {
     await this.drawImage(ctx, w.image, x, y, 65, 65)
@@ -305,18 +305,18 @@ export class Splatoon2 extends BaseBotModule {
     ctx.fillStyle = '#000'
     ctx.fillText(`ID: ${rctx.id++}`, 5, 2)
 
-    return canvas.toBuffer('image/jpeg').toString('base64')
+    return canvas.toBuffer('image/png').toString('base64')
   }
   // image: "/image/xxxx.png"
   async drawImage(ctx: CanvasRenderingContext2D, image: string, x: number, y: number, w: number, h: number, r = 0) {
     const dataFile = path.join(dataPath, image)
-    let img = new Image()
+    let img: Image
 
     try {
       await stat(dataFile)
-      img.src = await readFile(dataFile)
+      img = await loadImage(await readFile(dataFile))
     } catch {
-      img.src = await this.getImage(this.getURL(image))
+      img = await loadImage(await this.getImage(this.getURL(image)))
     }
 
     ctx.save()
@@ -404,9 +404,11 @@ export class Splatoon2 extends BaseBotModule {
     this.stageCacheMsg.set(idx, msg)
     return msg
   }
-  protected getCanvas (width: number, height: number, bg: string = '#FFF'): [HTMLCanvasElement & CanvasNonStandard, CanvasRenderingContext2D] {
-    const canvas = new Canvas(width, height)
-    const font = new Font('Roboto', path.join(__dirname, '../../font/DroidSansFallback.ttf'))
+  protected getCanvas (width: number, height: number, bg: string = '#FFF'): [Canvas, CanvasRenderingContext2D] {
+    const canvas = createCanvas(width, height)
+    registerFont(path.join(__dirname, '../../font/DroidSansFallback.ttf'), {
+      family: 'Roboto'
+    })
     const ctx = canvas.getContext('2d')
     if (!ctx) throw new Error('2d Context not found')
     ctx.fillStyle = bg
@@ -414,7 +416,6 @@ export class Splatoon2 extends BaseBotModule {
     ctx.fillStyle = '#000'
     ctx.font = '18px Roboto'
     ctx.textBaseline = 'top';
-    (ctx as any).addFont(font)
     return [canvas, ctx]
   }
   help (e: BotMessageEvent) {

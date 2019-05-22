@@ -29,7 +29,7 @@
     "typescript": "^3.0.3"
   },
   "devDependencies": {
-    "canvas": "^1.6.12",
+    "canvas": "2.4.1",
     "zerorpc": "^0.9.8"
   }
 }
