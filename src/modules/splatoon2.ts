@@ -334,7 +334,7 @@ export class Splatoon2 extends BaseBotModule {
     r = await this.drawMode(ctx, 'gachi', s.gachi, 0, r.y + r.h + 5)
     r = await this.drawMode(ctx, 'league', s.league, 0, r.y + r.h + 5)
     const textY = r.y + r.h + 5
-    ctx.font = '20px Paintball'
+    ctx.font = '28px Paintball'
     ctx.fillStyle = '#FFF'
     ctx.fillText(`${timeRange}`, 50, textY)
 
