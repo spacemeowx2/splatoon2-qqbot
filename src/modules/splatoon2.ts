@@ -3,9 +3,10 @@ import axios from 'axios'
 import { createCanvas, registerFont, Canvas, loadImage, Image, CanvasRenderingContext2D } from 'canvas'
 import path from 'path'
 import moment from 'moment'
-import { stat as statAsync, readFile as readFileAsync } from 'fs'
+import { stat as statAsync, readFile as readFileAsync, writeFileSync } from 'fs'
 import { promisify } from 'util'
-import { shuffle } from '../utils/helpers'
+import { shuffle, randomIn } from '../utils/helpers'
+import { CQCode, cqStringify, CQMessageList } from '../utils/cqcode'
 const stat = promisify(statAsync)
 const readFile = promisify(readFileAsync)
 const dataPath = path.resolve(__dirname, '..', '..', 'data')
@@ -21,7 +22,14 @@ registerFont(path.join(__dirname, '../../fonts/HaiPaiQiangDiaoGunShiJian-2.otf')
   family: 'HaiPai'
 })
 
-const STAGE_STYLE = 0
+const StageSize = {
+  w: 240,
+  h: 138
+}
+const CoopStageSize = {
+  w: 240,
+  h: 134
+}
 
 export interface S2Stage {
   id: string
@@ -60,6 +68,7 @@ interface Rect {
 interface RandomContext {
   weaponsTeamA: S2Weapon[]
   weaponsTeamB: S2Weapon[]
+  stages: S2Stage[]
   id: number
 }
 
@@ -69,6 +78,7 @@ interface Stage {
   name: string
 }
 
+type RulesType = 'rainmaker' | 'clam_blitz' | 'tower_control' | 'splat_zones' | 'turf_war'
 interface Rule {
   start_time: number
   end_time: number
@@ -76,7 +86,7 @@ interface Rule {
   stage_b: Stage
   rule: {
     name: string
-    key: 'rainmaker' | 'clam_blitz' | 'tower_control' | 'splat_zones' | 'turf_war'
+    key: RulesType
     multiline_name: string
   }
   game_mode: {
@@ -129,7 +139,7 @@ interface CoopSchedules {
   details: CoopSchedule[]
 }
 
-const RuleTranslate = {
+const RuleTranslate: Record<RulesType, string> = {
   'splat_zones': '区域',
   'tower_control': '塔',
   'clam_blitz': '蛤蜊',
@@ -139,7 +149,7 @@ const RuleTranslate = {
 
 export class Splatoon2 extends BaseBotModule {
   stageCache: Schedules | null = null
-  stageCacheMsg: Map<number, string> = new Map()
+  stageCacheMsg: Map<number, CQMessageList> = new Map()
   coopCache: CoopSchedules | null = null
   cacheImg: Map<string, Buffer> = new Map()
   groupRandom: Map<number, RandomContext> = new Map()
@@ -160,12 +170,12 @@ export class Splatoon2 extends BaseBotModule {
       this.getCurrentStage(1)
     }
   }
-  async onStage (e: BotMessageEvent) {
+  private async onStage (e: BotMessageEvent) {
     const { message } = e
-    const { atStr } = this.bot
+    const atCode = new CQCode('at', { qq: e.userId.toString() })
     if (message.includes('工')) {
       try {
-        return `${atStr(e.userId)} ${await this.getCurrentCoop()}`
+        return cqStringify([atCode, ...await this.getCurrentCoop()])
       } catch (e) {
         console.error(e)
         return `获取地图时出错, 请稍后再试`
@@ -185,34 +195,35 @@ export class Splatoon2 extends BaseBotModule {
         }
       }
       try {
-        return `${atStr(e.userId)} ${await this.getCurrentStage(idx)}`
+        return cqStringify([atCode, ...await this.getCurrentStage(idx)])
       } catch (e) {
         console.error(e)
         return `获取地图时出错, 请稍后再试`
       }
     }
   }
-  async onRandom (e: BotMessageEvent) {
+  private async onRandom (e: BotMessageEvent) {
     let rctx = this.groupRandom.get(e.groupId!)
     if (rctx === undefined) {
       rctx = {
         weaponsTeamA: [],
         weaponsTeamB: [],
+        stages: [],
         id: 1
       }
       this.groupRandom.set(e.groupId!, rctx)
     }
     if (e.message.includes('.随机武器')) {
-      const base64 = await this.drawRandomWeapon(rctx)
-      return `[CQ:image,file=base64://${base64}]`
+      const buffer = await this.drawRandomWeapon(rctx)
+      return cqStringify(this.getCQImage(buffer))
     }
   }
 
-  getURL (image: string): string {
+  private getURL (image: string): string {
     return `https://splatoon2.ink/assets/splatnet${image}`
   }
-  async drawRuleBackground (ctx: CanvasRenderingContext2D, rect: Rect, color: string) {
-    const patW = 30, patH = 30
+  private async drawBackground (ctx: CanvasRenderingContext2D, rect: Rect, color: string, linesColor: string = 'rgba(0,0,0,0.1)') {
+    const patW = 60, patH = 60
     const { x, y, w, h } = rect
     const patCanvas = new Canvas(patW, patH)
     const patCtx = patCanvas.getContext('2d')
@@ -243,85 +254,56 @@ export class Splatoon2 extends BaseBotModule {
       ctx.fillRect(x, y, w, h)
     }, rect, 10)
   }
-  async drawFirstRule (ctx: CanvasRenderingContext2D, stageType: StageTypes, rule: Rule, ruleName: string, x: number, y: number, t1: string, t2: string) {
-    const w = 271
-    const h = 105
-    const marginLeft = 15
-    const rect: Rect = {
-      x,
-      y,
-      w,
-      h
-    }
+  private drawVerticalMiddleText (ctx: CanvasRenderingContext2D, text: string, rect: Rect) {
     ctx.save()
-    this.drawRuleBackground(ctx, rect, colorMap[stageType])
-    ctx.fillStyle = '#FFF'
-    ctx.fillText(ruleName, marginLeft + x + 10, y + 5)
+    const {x, y, w, h} = rect
+    const textToFill = text.split('').join('\n')
+    ctx.textAlign = 'center'
+    ctx.textBaseline = 'top'
 
-    ctx.font = '14px Paintball'
-    ctx.fillText(t1, marginLeft + x + 80, y + 10)
-    {
-      ctx.save()
-      ctx.translate(marginLeft + x + 5, y + 30)
-      ctx.rotate(Math.PI / 2)
-      ctx.fillText(t2, 0, 0)
-      ctx.restore()
-    }
+    const m = ctx.measureText(textToFill)
+    const drawHeight = m.actualBoundingBoxAscent + m.actualBoundingBoxDescent
+
+    ctx.fillText(textToFill, x + w / 2, y + (h - drawHeight) / 2)
+    ctx.restore()
+  }
+  private async drawMode (ctx: CanvasRenderingContext2D, stageType: StageTypes, rule: Rule, x: number, y: number) {
+    ctx.save()
+    const ruleName = RuleTranslate[rule.rule.key]
+    const ruleWidth = 45
+    ctx.fillStyle = '#FFF'
+    this.drawVerticalMiddleText(ctx, ruleName, {
+      x: x + 5,
+      y: y + 5,
+      w: ruleWidth,
+      h: StageSize.h
+    })
 
     const r1 = await this.drawImage(ctx, rule.stage_a.image, {
-      x: marginLeft + 5 + x,
-      y: y + 33,
-      w: 120,
-      h: 69
+      x: x + 5 + ruleWidth,
+      y: y + 5,
+      ...StageSize
     }, 5)
     const r2 = await this.drawImage(ctx, rule.stage_b.image, {
-      x: marginLeft + 5 + x + 120 + 5,
-      y: y + 33,
-      w: 120,
-      h: 69
+      x: x + 5 + ruleWidth + StageSize.w + 10,
+      y: y + 5,
+      ...StageSize
     }, 5)
     await this.drawRuleIcon(ctx, stageType, {
       x: r1.x,
       y: r1.y,
       w: r2.x + r2.w - r1.x,
       h: r1.h
-    })
+    }, 0.6)
     ctx.restore()
-    return rect
-  }
-  async drawRule (ctx: CanvasRenderingContext2D, stageType: StageTypes, rule: Rule, ruleName: string, x: number, y: number) {
-    ctx.save()
-    const w = 132, h = 185
-    const rect: Rect = { x, y, w, h }
-    this.drawRuleBackground(ctx, rect, colorMap[stageType])
-    ctx.fillStyle = '#FFF'
-    ctx.fillText(ruleName, x + 8, y + 5)
-
-    this.roundPath(ctx, () => {
-      ctx.fillStyle = 'rgba(0,0,0,0.7)'
-      ctx.fillRect(x, y + 30, w, h - 30)
-    }, rect, 10)
-    const r1 = await this.drawImage(ctx, rule.stage_a.image, {
+    return {
       x: x + 5,
-      y: y + 35,
-      w: 120,
-      h: 69
-    }, 5)
-    const r2 = await this.drawImage(ctx, rule.stage_b.image, {
-      x: x + 5,
-      y: y + 35 + 75,
-      w: 120,
-      h: 69
-    }, 5)
-    await this.drawRuleIcon(ctx, stageType, {
-      x: r1.x,
       y: r1.y,
-      w: r1.w,
-      h: r2.y + r2.h - r1.y
-    })
-    ctx.restore()
+      w: r2.x + r2.w - 5,
+      h: r1.h
+    }
   }
-  getTime (d: Date) {
+  private getTime (d: Date) {
     let h = d.getHours().toString()
     if (h.length === 1) {
       h = `0${h}`
@@ -333,59 +315,47 @@ export class Splatoon2 extends BaseBotModule {
     return `${h}:${m}`
   }
   async drawSchedule (s: Schedule) {
-    let w: number, h: number
-    if (STAGE_STYLE) {
-      w = 415
-      h = 220
-    } else {
-      w = 280
-      h = 305
-    }
-    const [canvas, ctx] = this.getCanvas(w, h)
+    const [canvas, ctx] = this.getCanvas(550, 485)
     const timeStart = new Date(s.regular.start_time * 1000)
     const timeEnd = new Date(s.regular.end_time * 1000)
-    const dif = moment.unix(s.regular.end_time).diff(moment())
+    const difEnd = moment.unix(s.regular.end_time).diff(moment())
+    const timeRange = `${this.getTime(timeStart)} - ${this.getTime(timeEnd)}`
 
-    if (STAGE_STYLE) {
-      const ruleWidth = 132
-      const ruleHeight = 185
-      const ruleTop = 5
-      await this.drawRule(ctx, 'regular', s.regular, '涂地', 5, ruleTop),
-      await this.drawRule(ctx, 'gachi', s.gachi, `单排(${RuleTranslate[s.gachi.rule.key]})`, 5 + (5 + ruleWidth), ruleTop),
-      await this.drawRule(ctx, 'league', s.league, `组排(${RuleTranslate[s.league.rule.key]})`, 5 + (5 + ruleWidth) * 2, ruleTop)
+    ctx.font = '30px HaiPai, Roboto'
+    await this.drawBackground(ctx, {
+      x: 0,
+      y: 0,
+      w: canvas.width,
+      h: canvas.height
+    }, '#444')
 
-      ctx.font = '14px Paintball, Roboto'
-      ctx.fillText(`北京时间: ${this.getTime(timeStart)} - ${this.getTime(timeEnd)}`, 15, 5 + ruleHeight + 5)
-      ctx.fillText(`剩余时间: ${this.difTimeToStr(dif)}`, 245, 5 + ruleHeight + 5)
-    } else {
-      const ruleWidth = 132
-      const ruleHeight = 185
-      const t1 = `北京时间: ${this.getTime(timeStart)} - ${this.getTime(timeEnd)}`
-      const t2 = this.difTimeToStr(dif)
-      const {y, h} = await this.drawFirstRule(ctx, 'regular', s.regular, '涂地', 5, 5, t1, t2)
-      await this.drawRule(ctx, 'gachi', s.gachi, `单排(${RuleTranslate[s.gachi.rule.key]})`, 5, y + h + 5),
-      await this.drawRule(ctx, 'league', s.league, `组排(${RuleTranslate[s.league.rule.key]})`, 5 + (5 + ruleWidth), y + h + 5)
-    }
+    let r: Rect
+    r = await this.drawMode(ctx, 'regular', s.regular, 0, 5)
+    r = await this.drawMode(ctx, 'gachi', s.gachi, 0, r.y + r.h + 5)
+    r = await this.drawMode(ctx, 'league', s.league, 0, r.y + r.h + 5)
+    const textY = r.y + r.h + 5
+    ctx.font = '20px Paintball'
+    ctx.fillStyle = '#FFF'
+    ctx.fillText(`${timeRange}`, 50, textY)
 
-    return canvas.toBuffer('image/png').toString('base64')
+    return canvas.toBuffer('image/png')
   }
-  async drawCoopLine (ctx: CanvasRenderingContext2D, s: CoopSchedule, top: number) {
+  private async drawWeapons (ctx: CanvasRenderingContext2D, s: CoopSchedule, rect: Rect) {
+    const { x, y, w, h } = rect
+    const weaponPadding = 5
+    const calcSize = Math.min(rect.w, rect.h)
+    const weaponSize = (Math.min(calcSize) - weaponPadding * 3) / 2
+    const weaponUnit = weaponPadding + weaponSize + weaponPadding
     const xy = [
-      [0, 0],
-      [33, 0],
-      [0, 33],
-      [33, 33]
+      [weaponPadding, weaponPadding],
+      [weaponUnit, weaponPadding],
+      [weaponPadding, weaponUnit],
+      [weaponUnit, weaponUnit]
     ]
-    ctx.fillText(`${moment.unix(s.start_time).format('MM-DD HH:mm')} - ${moment.unix(s.end_time).format('MM-DD HH:mm')}`, 5, top)
-
-    await this.drawImage(ctx, s.stage.image, {
-      x: 5,
-      y: top + 25,
-      w: 120,
-      h: 67
-    }, 5)
-
-    let weaponXY = [5 + 120 + 5, top + 25]
+    const [offsetX, offsetY] = [
+      calcSize < w ? (w - calcSize) / 2 : 0,
+      calcSize < h ? (h - calcSize) / 2 : 0,
+    ]
     for (let i = 0; i < 4; i++) {
       let w = s.weapons[i].weapon
       if (!w) {
@@ -396,14 +366,43 @@ export class Splatoon2 extends BaseBotModule {
         throw new Error()
       }
       await this.drawImage(ctx, w.image, {
-        x: weaponXY[0] + xy[i][0],
-        y: weaponXY[1] + xy[i][1],
-        w: 30,
-        h: 30
+        x: x + offsetX + xy[i][0],
+        y: y + offsetY + xy[i][1],
+        w: weaponSize,
+        h: weaponSize
       })
     }
+    return rect
   }
-  difTimeToStr (dif: number) {
+  private async drawCoopLine (ctx: CanvasRenderingContext2D, s: CoopSchedule, x: number, y: number): Promise<Rect> {
+    const textHeight = 30
+    ctx.fillText(
+      `${moment.unix(s.start_time).format('MM-DD HH:mm')} - ${moment.unix(s.end_time).format('MM-DD HH:mm')}`,
+      x + 5, y
+    )
+
+    const weaponRect: Rect = {
+      x: x + 5 + CoopStageSize.w + 5,
+      y: y + textHeight,
+      w: CoopStageSize.h,
+      h: CoopStageSize.h
+    }
+
+    await this.drawImage(ctx, s.stage.image, {
+      x: x + 5,
+      y: y + textHeight,
+      ...CoopStageSize
+    }, 5)
+
+    const r = await this.drawWeapons(ctx, s, weaponRect)
+    return {
+      x,
+      y,
+      w: r.x + r.w - x,
+      h: textHeight + 5 + CoopStageSize.h,
+    }
+  }
+  private difTimeToStr (dif: number) {
     let diff = Math.floor(dif / 1000 / 60) // minutes
     const minutes = diff % 60
     diff -= minutes
@@ -419,11 +418,18 @@ export class Splatoon2 extends BaseBotModule {
   }
   async drawCoopSchedule (s: CoopSchedules) {
     const now = Math.floor(Date.now() / 1000)
-    const [canvas, ctx] = this.getCanvas(217, 225)
+    const [canvas, ctx] = this.getCanvas(395, 390)
     const details = s.details
     const { start_time, end_time } = details[0]
     let time = ''
     let dif: number
+
+    ctx.font = '24px Paintball'
+    await this.drawBackground(ctx, {
+      x: 0, y: 0,
+      w: canvas.width, h: canvas.height
+    }, '#ee612b')
+
     if (start_time > now) {
       dif = moment.unix(start_time).diff(moment())
       time = '离开始还有'
@@ -435,20 +441,85 @@ export class Splatoon2 extends BaseBotModule {
     time = `${time} ${this.difTimeToStr(dif)}`
 
     ctx.fillText(`${time}`, 5, 5)
-    await this.drawCoopLine(ctx, details[0], 5 + 25)
-    await this.drawCoopLine(ctx, details[1], 5 + 25 + 25 + 67 + 5)
+    let r: Rect
+    r = await this.drawCoopLine(ctx, details[0], 5, 5 + 25 + 10)
+    r = await this.drawCoopLine(ctx, details[1], 5, r.y + r.h + 5)
 
-    return canvas.toBuffer('image/png').toString('base64')
+    return canvas.toBuffer('image/png')
   }
-  async drawWeapon (ctx: CanvasRenderingContext2D, w: S2Weapon, x: number, y: number) {
+  private async drawWeapon (ctx: CanvasRenderingContext2D, w: S2Weapon, x: number, y: number): Promise<Rect> {
     await this.drawImage(ctx, w.image, { x, y, w: 65, h: 65})
     await this.drawImage(ctx, w.sub.image_a, { x: x + 70, y, w: 30, h: 30 })
-    await this.drawImage(ctx, w.special.image_a, { x: x + 70, y: y + 30 + 5, w: 30, h: 30 })
+    const r = await this.drawImage(ctx, w.special.image_a, { x: x + 70, y: y + 30 + 5, w: 30, h: 30 })
+    return {
+      x, y,
+      w: r.x + r.w - x,
+      h: r.y + r.h - y
+    }
+  }
+  private async drawTeam (ctx: CanvasRenderingContext2D, team: {
+    weapons: S2Weapon[]
+    color: string
+    title: string
+  }, x: number, y: number) {
+    ctx.save()
+    let curTop = y + 5
+    const titleHeight = 30
+    const rect: Rect = {
+      x, y,
+      w: 120, h: 5 + titleHeight + team.weapons.length * 70 + 5 + 5
+    }
+    this.drawBackground(ctx, rect, team.color)
+
+    ctx.fillStyle = '#FFF'
+    ctx.fillText(team.title, x + 5, curTop)
+    curTop += titleHeight
+
+    this.roundPath(ctx, ({ x, y, w, h }) => {
+      ctx.fillStyle = 'rgba(0, 0, 0, 0.7)'
+      ctx.fillRect(x, y, w, h)
+    }, {
+      x: x + 5,
+      y: curTop,
+      w: rect.w - 10,
+      h: rect.h - (curTop - y) - 5
+    }, 5)
+
+    curTop += 5
+    for (let w of team.weapons) {
+      const r = await this.drawWeapon(ctx, w, x + 10, curTop)
+      curTop += r.h + 5
+    }
+
+    ctx.restore()
+  }
+  private drawRandomHeader (ctx: CanvasRenderingContext2D, stage: S2Stage, id: number) {
+    ctx.save()
+
+    const headerHeight = 88
+    const headerRect: Rect = {
+      x: 0, y: 0,
+      w: 245, h: headerHeight
+    }
+
+    const Rules: RulesType[] = ['splat_zones', 'tower_control', 'rainmaker']
+    const randomRule = RuleTranslate[randomIn(Rules)]
+    this.drawBackground(ctx, headerRect, '#444')
+    ctx.fillStyle = '#FFF'
+    ctx.fillText(`#${id}\n\n模式:${randomRule}`, 10, 10)
+
+    this.drawImage(ctx, stage.image, { x: 118, y: 10, w: 120, h: 69 }, 5)
+
+    ctx.restore()
+    return headerRect
   }
   async drawRandomWeapon (rctx: RandomContext) {
-    const [canvas, ctx] = this.getCanvas(232, 310, '#bfbfbf')
+    const [canvas, ctx] = this.getCanvas(245, 418)
     const { weapons } = splatoon2Data
 
+    if (rctx.stages.length === 0) {
+      rctx.stages = shuffle(splatoon2Data.stages)
+    }
     if (rctx.weaponsTeamA.length < 4) {
       rctx.weaponsTeamA = [...rctx.weaponsTeamA, ...shuffle(weapons)]
     }
@@ -456,27 +527,24 @@ export class Splatoon2 extends BaseBotModule {
       rctx.weaponsTeamB = [...rctx.weaponsTeamB, ...shuffle(weapons)]
     }
 
-    for (let i = 0; i < 4; i++) {
-      const w = rctx.weaponsTeamA.shift()!
-      await this.drawWeapon(ctx, w, 5, 5 + i * 70 + 25)
-    }
+    const { h: headerHeight } = this.drawRandomHeader(ctx, rctx.stages.shift()!, rctx.id++)
+    const teamTop = headerHeight + 5
+    await this.drawTeam(ctx, {
+      weapons: rctx.weaponsTeamA.splice(0, 4),
+      color: '#de447d',
+      title: 'Alpha'
+    }, 0, teamTop)
 
-    for (let i = 0; i < 4; i++) {
-      const w = rctx.weaponsTeamB.shift()!
-      await this.drawWeapon(ctx, w, 5 + 100 + 20, 5 + i * 70 + 25)
-    }
+    await this.drawTeam(ctx, {
+      weapons: rctx.weaponsTeamB.splice(0, 4),
+      color: '#65d244',
+      title: 'Beta'
+    }, 125, teamTop)
 
-    ctx.fillStyle = '#FFF'
-    ctx.fillRect(115, 20, 5, 10000)
-    ctx.fillRect(0, 0, 10000, 25)
-
-    ctx.fillStyle = '#000'
-    ctx.fillText(`ID: ${rctx.id++}`, 5, 2)
-
-    return canvas.toBuffer('image/png').toString('base64')
+    return canvas.toBuffer('image/png')
   }
   // image: "/image/xxxx.png"
-  async drawImage(ctx: CanvasRenderingContext2D, image: string, rect: Rect, r = 0) {
+  private async drawImage(ctx: CanvasRenderingContext2D, image: string, rect: Rect, r = 0) {
     const { x, y, w, h } = rect
     const dataFile = path.join(dataPath, image)
     let img: Image
@@ -493,19 +561,22 @@ export class Splatoon2 extends BaseBotModule {
     }, rect, r)
     return rect
   }
-  async drawRuleIcon(ctx: CanvasRenderingContext2D, type: StageTypes, rect: Rect) {
+  private async drawRuleIcon(ctx: CanvasRenderingContext2D, type: StageTypes, rect: Rect, r: number = 1) {
     const imgPath = path.join(dataPath, `/images/stage_types/${type}.png`)
     const img = await loadImage(await readFile(imgPath))
+    const imgW = img.width * r
+    const imgH = img.height * r
     const drawRect: Rect = {
-      x: rect.x + (rect.w - img.width) / 2,
-      y: rect.y + (rect.h - img.height) / 2,
-      w: img.width,
-      h: img.height
+      x: rect.x + (rect.w - imgW) / 2,
+      y: rect.y + (rect.h - imgH) / 2,
+      w: imgW,
+      h: imgH
     }
-    ctx.drawImage(img, drawRect.x, drawRect.y)
+    ctx.drawImage(img, drawRect.x, drawRect.y, drawRect.w, drawRect.h)
     return drawRect
   }
-  private roundPath (ctx: CanvasRenderingContext2D, cb: Function, { x, y, w, h }: Rect, r: number) {
+  private roundPath (ctx: CanvasRenderingContext2D, cb: (rect: Rect) => void, rect: Rect, r: number) {
+    const { x, y, w, h } = rect
     ctx.save()
     if (r > 0) {
       ctx.beginPath()
@@ -517,10 +588,10 @@ export class Splatoon2 extends BaseBotModule {
       ctx.closePath()
       ctx.clip()
     }
-    cb()
+    cb(rect)
     ctx.restore()
   }
-  async getImage (url: string) {
+  private async getImage (url: string) {
     if (this.cacheImg.has(url)) {
       return this.cacheImg.get(url)!
     } else {
@@ -538,7 +609,7 @@ export class Splatoon2 extends BaseBotModule {
       return buf
     }
   }
-  async getCurrentCoop (): Promise<string> {
+  private async getCurrentCoop (): Promise<CQCode[]> {
     const now = Math.floor(Date.now() / 1000)
     let coopCache = this.coopCache
     if (!coopCache || coopCache.details[0].end_time < now) {
@@ -550,13 +621,18 @@ export class Splatoon2 extends BaseBotModule {
     console.log('coop start drawing')
 
     const startTime = Date.now()
-    const base64 = await this.drawCoopSchedule(coopCache)
-    let msg = `[CQ:image,file=base64://${base64}]`
+    const buffer = await this.drawCoopSchedule(coopCache)
+    let msg = this.getCQImage(buffer)
 
     console.log(`drawing done, spend ${Date.now() - startTime}ms`)
     return msg
   }
-  async getCurrentStage (idx: number = 0) {
+  private getCQImage (buffer: Buffer) {
+    return [new CQCode('image', {
+      file: `base64://${buffer.toString('base64')}`
+    })]
+  }
+  private async getCurrentStage (idx: number = 0) {
     const now = Date.now()
     let cache = this.stageCache
     if (!cache || cache.league[0].end_time < Math.floor(now / 1000)) {
@@ -575,31 +651,30 @@ export class Splatoon2 extends BaseBotModule {
     const gachi = cache.gachi[idx]
     const league = cache.league[idx]
 
-    let msg = ''
+    let msg: CQMessageList = []
     if (this.bot.isPro) {
-      const base64 = await this.drawSchedule({ regular, gachi, league })
-      msg = `[CQ:image,file=base64://${base64}]`
+      const buffer = await this.drawSchedule({ regular, gachi, league })
+      msg = this.getCQImage(buffer)
     } else {
-      msg = (
+      msg = [(
         `涂地: ${regular.stage_a.name}, ${regular.stage_b.name}\n` +
         `单排(${RuleTranslate[gachi.rule.key]}): ${gachi.stage_a.name}, ${gachi.stage_b.name}\n` +
         `组排(${RuleTranslate[league.rule.key]}): ${league.stage_a.name}, ${league.stage_b.name}`
-      )
+      )]
     }
 
     console.log(`drawing done, spend ${Date.now() - startTime}ms`)
     this.stageCacheMsg.set(idx, msg)
     return msg
   }
-  protected getCanvas (width: number, height: number, bg: string = '#FFF'): [Canvas, CanvasRenderingContext2D] {
+  private getCanvas (width: number, height: number): [Canvas, CanvasRenderingContext2D] {
     const canvas = createCanvas(width, height)
     const ctx = canvas.getContext('2d')
     if (!ctx) throw new Error('2d Context not found')
-    ctx.fillStyle = bg
-    ctx.fillRect(0, 0, canvas.width, canvas.height)
-    ctx.fillStyle = '#000'
-    ctx.font = '18px HaiPai, Roboto'
-    ctx.textBaseline = 'top';
+    ctx.clearRect(0, 0, canvas.width, canvas.height)
+    ctx.fillStyle = '#FFF'
+    ctx.font = '18px HaiPai, Paintball, Roboto'
+    ctx.textBaseline = 'top'
     return [canvas, ctx]
   }
   help (e: BotMessageEvent) {
@@ -612,3 +687,28 @@ export class Splatoon2 extends BaseBotModule {
     return ''
   }
 }
+
+async function main () {
+  const sp2 = new Splatoon2()
+
+  // const s = (await axios.get<Schedules>('https://splatoon2.ink/data/schedules.json')).data
+  // const buf = await sp2.drawSchedule({
+  //   regular: s.regular[0],
+  //   gachi: s.gachi[0],
+  //   league: s.league[0]
+  // })
+
+  // const s = (await axios.get<CoopSchedules>('https://splatoon2.ink/data/coop-schedules.json')).data
+  // const buf = await sp2.drawCoopSchedule(s)
+
+  const rctx = {
+    weaponsTeamA: [],
+    weaponsTeamB: [],
+    stages: [],
+    id: 1
+  }
+  const buf = await sp2.drawRandomWeapon(rctx)
+
+  writeFileSync('pic.png', buf)
+}
+// main().catch(e => console.error(e))
