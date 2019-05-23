@@ -270,7 +270,7 @@ export class Splatoon2 extends BaseBotModule {
   private async drawMode (ctx: CanvasRenderingContext2D, stageType: StageTypes, rule: Rule, x: number, y: number) {
     ctx.save()
     const ruleName = RuleTranslate[rule.rule.key]
-    const ruleWidth = 45
+    const ruleWidth = 55
     ctx.fillStyle = '#FFF'
     this.drawVerticalMiddleText(ctx, ruleName, {
       x: x + 5,
@@ -315,13 +315,13 @@ export class Splatoon2 extends BaseBotModule {
     return `${h}:${m}`
   }
   async drawSchedule (s: Schedule) {
-    const [canvas, ctx] = this.getCanvas(550, 485)
+    const [canvas, ctx] = this.getCanvas(560, 485)
     const timeStart = new Date(s.regular.start_time * 1000)
     const timeEnd = new Date(s.regular.end_time * 1000)
     const difEnd = moment.unix(s.regular.end_time).diff(moment())
     const timeRange = `${this.getTime(timeStart)} - ${this.getTime(timeEnd)}`
 
-    ctx.font = '30px HaiPai, Roboto'
+    ctx.font = '40px HaiPai, Roboto'
     await this.drawBackground(ctx, {
       x: 0,
       y: 0,
