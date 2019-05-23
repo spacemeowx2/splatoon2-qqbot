@@ -315,7 +315,7 @@ export class Splatoon2 extends BaseBotModule {
     return `${h}:${m}`
   }
   async drawSchedule (s: Schedule) {
-    const [canvas, ctx] = this.getCanvas(560, 485)
+    const [canvas, ctx] = this.getCanvas(560, 495)
     const timeStart = new Date(s.regular.start_time * 1000)
     const timeEnd = new Date(s.regular.end_time * 1000)
     const difEnd = moment.unix(s.regular.end_time).diff(moment())
@@ -331,8 +331,8 @@ export class Splatoon2 extends BaseBotModule {
 
     let r: Rect
     r = await this.drawMode(ctx, 'regular', s.regular, 0, 5)
-    r = await this.drawMode(ctx, 'gachi', s.gachi, 0, r.y + r.h + 5)
-    r = await this.drawMode(ctx, 'league', s.league, 0, r.y + r.h + 5)
+    r = await this.drawMode(ctx, 'gachi', s.gachi, 0, r.y + r.h + 10)
+    r = await this.drawMode(ctx, 'league', s.league, 0, r.y + r.h + 10)
     const textY = r.y + r.h + 5
     ctx.font = '28px Paintball'
     ctx.fillStyle = '#FFF'
