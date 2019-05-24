@@ -148,6 +148,7 @@ export class AdminControl extends BaseBotModule {
   private listModules (groupId: number) {
     let out: string[] = ['ID  名称  是否开启']
     for (let m of this.bot.getModules()) {
+      if (m.name === '') continue
       out.push(`${m.id}  ${m.name}  ${this.isModuleEnabled(groupId, m) ? `已开启` : `已关闭`}`)
     }
     return out.join('\n')

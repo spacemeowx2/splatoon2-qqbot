@@ -13,6 +13,7 @@ import { AtAll } from './modules/at-all'
 import { PersonalData } from './modules/personal-data'
 import { HorseRacing } from './modules/horse-racing'
 import { GifReverse } from './modules/gif-reverse'
+import { ThankRedpack } from './modules/thank-redpack'
 
 async function main () {
   const access_token = process.env.CQ_ACCESS_TOKEN
@@ -30,8 +31,10 @@ async function main () {
   }
 
   const adminControl = new AdminControl()
+  const thankRedpack = new ThankRedpack()
   if (process.env.TSBOT_ADMIN) {
     adminControl.adminQQ.push(parseInt(process.env.TSBOT_ADMIN))
+    thankRedpack.notifyQQ.push(parseInt(process.env.TSBOT_ADMIN))
   }
   const bot = new TSBot(opt)
 
@@ -39,6 +42,7 @@ async function main () {
   bot.isPro = true
   bot.registerModule(adminControl)
   // bot.registerModule(new HorseRacing())
+  bot.registerModule(thankRedpack)
   bot.registerModule(new PersonalData())
   bot.registerModule(new AtAll())
   bot.registerModule(new PictureSender())
