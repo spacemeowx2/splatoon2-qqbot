@@ -160,9 +160,8 @@ export class Splatoon2 extends BaseBotModule {
     super.init(ctx)
     const { bot, bus } = ctx
 
-    bus.registerMessage([bus.privateFilter], e => this.onStage(e))
-    bus.registerMessage([bus.atMeFilter], e => this.onStage(e))
-    bus.registerMessage([bus.groupTypeFilter], e => this.onRandom(e))
+    bus.registerMessage([bus.cmdFilter], e => this.onStage(e))
+    bus.registerMessage([bus.cmdFilter], e => this.onRandom(e))
 
     if (!bot.isDebug) {
       console.log('preparing images...')
@@ -204,6 +203,9 @@ export class Splatoon2 extends BaseBotModule {
     }
   }
   private async onRandom (e: BotMessageEvent) {
+    if (!e.groupId) {
+      return '随机武器不支持私聊~'
+    }
     let rctx = this.groupRandom.get(e.groupId!)
     if (rctx === undefined) {
       rctx = {
@@ -214,7 +216,7 @@ export class Splatoon2 extends BaseBotModule {
       }
       this.groupRandom.set(e.groupId!, rctx)
     }
-    if (e.message.includes('.随机武器')) {
+    if (e.message.trim() === '随机武器') {
       const buffer = await this.drawRandomWeapon(rctx)
       return cqStringify(this.getCQImage(buffer))
     }
