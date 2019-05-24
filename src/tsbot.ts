@@ -60,6 +60,9 @@ export class TSBotEventBus {
   cmdFilter: MessageFilter = (e, abort) => {
     const atMe = `[CQ:at,qq=${e.selfId}]`
     const cmdPrefix = '.'
+    if (e.messageType === BotMessageType.Private) {
+      return true
+    }
     if (e.message.includes(atMe)) {
       e.message = e.message.replace(atMe, '')
       return true
@@ -307,7 +310,7 @@ export class TSBot implements BotModule {
   }
   protected helpFilter (e: BotMessageEvent) {
     const msg = cqGetString(e.message)
-    const keyword = ['help', '帮助', '?', '使用说明']
+    const keyword = ['help', '菜单', '帮助', '?', '使用说明']
 
     for (let k of keyword) {
       if (msg.includes(k)) {

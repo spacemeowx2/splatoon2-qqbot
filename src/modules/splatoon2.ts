@@ -160,6 +160,7 @@ export class Splatoon2 extends BaseBotModule {
     super.init(ctx)
     const { bot, bus } = ctx
 
+    bus.registerMessage([bus.privateFilter], e => this.onStage(e))
     bus.registerMessage([bus.atMeFilter], e => this.onStage(e))
     bus.registerMessage([bus.groupTypeFilter], e => this.onRandom(e))
 
@@ -172,7 +173,7 @@ export class Splatoon2 extends BaseBotModule {
   }
   private async onStage (e: BotMessageEvent) {
     const { message } = e
-    const atCode = new CQCode('at', { qq: e.userId.toString() })
+    const atCode = e.groupId ? new CQCode('at', { qq: e.userId.toString() }) : ''
     if (message.includes('工')) {
       try {
         return cqStringify([atCode, ...await this.getCurrentCoop()])

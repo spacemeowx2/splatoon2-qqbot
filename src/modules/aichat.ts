@@ -150,9 +150,14 @@ class AIChatCls extends BaseBotModule {
     super.init(ctx)
     const { bus } = ctx
     bus.registerMessage([bus.atMeFilter], e => this.onMessage(e))
+    bus.registerMessage([bus.privateFilter], e => this.onMessage(e))
   }
   async onMessage (e: BotMessageEvent) {
-    return `${this.bot.atStr(e.userId)} ${await this.backend.onMessage(e)}`
+    if (e.groupId) {
+      return `${this.bot.atStr(e.userId)} ${await this.backend.onMessage(e)}`
+    } else {
+      return `${await this.backend.onMessage(e)}`
+    }
   }
   help (e: BotMessageEvent) {
     if (e.messageType === BotMessageType.Group) {

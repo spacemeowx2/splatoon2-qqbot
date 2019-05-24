@@ -32,6 +32,15 @@ export class PersonalData extends BaseBotModule {
         return `${this.bot.atStr(e.userId)} ${msg}`
       }
     })
+    bus.registerMessage([bus.privateFilter, bus.startsWithFilter(startWith)], async e => {
+      let msg: string | void
+      try {
+        msg = await f(e)
+      } catch (e) {
+        msg = e.message
+      }
+      return msg
+    })
   }
   private mergeCQCode (msg: CQMessageList) {
     const ret: CQMessageList = []
