@@ -203,20 +203,20 @@ export class Splatoon2 extends BaseBotModule {
     }
   }
   private async onRandom (e: BotMessageEvent) {
-    if (!e.groupId) {
-      return '随机武器不支持私聊~'
-    }
-    let rctx = this.groupRandom.get(e.groupId!)
-    if (rctx === undefined) {
-      rctx = {
-        weaponsTeamA: [],
-        weaponsTeamB: [],
-        stages: [],
-        id: 1
-      }
-      this.groupRandom.set(e.groupId!, rctx)
-    }
     if (e.message.trim() === '随机武器') {
+      if (!e.groupId) {
+        return '随机武器不支持私聊~'
+      }
+      let rctx = this.groupRandom.get(e.groupId!)
+      if (rctx === undefined) {
+        rctx = {
+          weaponsTeamA: [],
+          weaponsTeamB: [],
+          stages: [],
+          id: 1
+        }
+        this.groupRandom.set(e.groupId!, rctx)
+      }
       const buffer = await this.drawRandomWeapon(rctx)
       return cqStringify(this.getCQImage(buffer))
     }
