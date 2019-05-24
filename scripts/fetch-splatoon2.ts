@@ -109,6 +109,8 @@ async function main (argv: string[]) {
       downloadImage(weapon.image),
       downloadImage(weapon.sub.image_a),
       downloadImage(weapon.special.image_a),
+      downloadImage(weapon.sub.image_b),
+      downloadImage(weapon.special.image_b),
     ]
     await Promise.all(s)
   }

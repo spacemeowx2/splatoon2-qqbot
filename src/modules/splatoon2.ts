@@ -450,10 +450,16 @@ export class Splatoon2 extends BaseBotModule {
 
     return canvas.toBuffer('image/png')
   }
-  private async drawWeapon (ctx: CanvasRenderingContext2D, w: S2Weapon, x: number, y: number): Promise<Rect> {
+  private async drawWeapon (ctx: CanvasRenderingContext2D, w: S2Weapon, x: number, y: number, b: boolean): Promise<Rect> {
     await this.drawImage(ctx, w.image, { x, y, w: 65, h: 65})
-    await this.drawImage(ctx, w.sub.image_a, { x: x + 70, y, w: 30, h: 30 })
-    const r = await this.drawImage(ctx, w.special.image_a, { x: x + 70, y: y + 30 + 5, w: 30, h: 30 })
+    let sub = w.sub.image_a
+    let special = w.special.image_a
+    if (b) {
+      sub = w.sub.image_b
+      special = w.special.image_b
+    }
+    await this.drawImage(ctx, sub, { x: x + 70, y, w: 30, h: 30 })
+    const r = await this.drawImage(ctx, special, { x: x + 70, y: y + 30 + 5, w: 30, h: 30 })
     return {
       x, y,
       w: r.x + r.w - x,
@@ -464,6 +470,7 @@ export class Splatoon2 extends BaseBotModule {
     weapons: S2Weapon[]
     color: string
     title: string
+    isBeta: boolean
   }, x: number, y: number) {
     ctx.save()
     let curTop = y + 5
@@ -490,7 +497,7 @@ export class Splatoon2 extends BaseBotModule {
 
     curTop += 5
     for (let w of team.weapons) {
-      const r = await this.drawWeapon(ctx, w, x + 10, curTop)
+      const r = await this.drawWeapon(ctx, w, x + 10, curTop, team.isBeta)
       curTop += r.h + 5
     }
 
@@ -535,13 +542,15 @@ export class Splatoon2 extends BaseBotModule {
     await this.drawTeam(ctx, {
       weapons: rctx.weaponsTeamA.splice(0, 4),
       color: '#de447d',
-      title: 'Alpha'
+      title: 'Alpha',
+      isBeta: false
     }, 0, teamTop)
 
     await this.drawTeam(ctx, {
       weapons: rctx.weaponsTeamB.splice(0, 4),
       color: '#65d244',
-      title: 'Beta'
+      title: 'Beta',
+      isBeta: true
     }, 125, teamTop)
 
     return canvas.toBuffer('image/png')
