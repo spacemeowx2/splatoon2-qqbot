@@ -451,15 +451,15 @@ export class Splatoon2 extends BaseBotModule {
     return canvas.toBuffer('image/png')
   }
   private async drawWeapon (ctx: CanvasRenderingContext2D, w: S2Weapon, x: number, y: number, b: boolean): Promise<Rect> {
-    await this.drawImage(ctx, w.image, { x, y, w: 65, h: 65})
+    await this.drawImage(ctx, w.image, { x, y, w: 130, h: 130})
     let sub = w.sub.image_a
     let special = w.special.image_a
     if (b) {
       sub = w.sub.image_b
       special = w.special.image_b
     }
-    await this.drawImage(ctx, sub, { x: x + 70, y, w: 30, h: 30 })
-    const r = await this.drawImage(ctx, special, { x: x + 70, y: y + 30 + 5, w: 30, h: 30 })
+    await this.drawImage(ctx, sub, { x: x + 130 + 10, y, w: 60, h: 60 })
+    const r = await this.drawImage(ctx, special, { x: x + 130 + 10, y: y + 60 + 10, w: 60, h: 60 })
     return {
       x, y,
       w: r.x + r.w - x,
@@ -473,32 +473,32 @@ export class Splatoon2 extends BaseBotModule {
     isBeta: boolean
   }, x: number, y: number) {
     ctx.save()
-    let curTop = y + 5
-    const titleHeight = 30
+    let curTop = y + 10
+    const titleHeight = 60
     const rect: Rect = {
       x, y,
-      w: 120, h: 5 + titleHeight + team.weapons.length * 70 + 5 + 5
+      w: 240, h: 10 + titleHeight + team.weapons.length * 140 + 10 + 10
     }
     this.drawBackground(ctx, rect, team.color)
 
     ctx.fillStyle = '#FFF'
-    ctx.fillText(team.title, x + 5, curTop)
+    ctx.fillText(team.title, x + 10, curTop)
     curTop += titleHeight
 
     this.roundPath(ctx, ({ x, y, w, h }) => {
       ctx.fillStyle = 'rgba(0, 0, 0, 0.7)'
       ctx.fillRect(x, y, w, h)
     }, {
-      x: x + 5,
+      x: x + 10,
       y: curTop,
-      w: rect.w - 10,
-      h: rect.h - (curTop - y) - 5
+      w: rect.w - 20,
+      h: rect.h - (curTop - y) - 10
     }, 5)
 
-    curTop += 5
+    curTop += 10
     for (let w of team.weapons) {
-      const r = await this.drawWeapon(ctx, w, x + 10, curTop, team.isBeta)
-      curTop += r.h + 5
+      const r = await this.drawWeapon(ctx, w, x + 20, curTop, team.isBeta)
+      curTop += r.h + 10
     }
 
     ctx.restore()
@@ -506,27 +506,28 @@ export class Splatoon2 extends BaseBotModule {
   private drawRandomHeader (ctx: CanvasRenderingContext2D, stage: S2Stage, id: number) {
     ctx.save()
 
-    const headerHeight = 88
+    const headerHeight = 176
     const headerRect: Rect = {
       x: 0, y: 0,
-      w: 245, h: headerHeight
+      w: 490, h: headerHeight
     }
 
     const Rules: RulesType[] = ['splat_zones', 'tower_control', 'rainmaker']
     const randomRule = RuleTranslate[randomIn(Rules)]
     this.drawBackground(ctx, headerRect, '#444')
     ctx.fillStyle = '#FFF'
-    ctx.fillText(`#${id}\n\n模式:${randomRule}`, 10, 10)
+    ctx.fillText(`#${id}\n\n模式:${randomRule}`, 20, 20)
 
-    this.drawImage(ctx, stage.image, { x: 118, y: 10, w: 120, h: 69 }, 5)
+    this.drawImage(ctx, stage.image, { x: 236, y: 20, ...StageSize }, 5)
 
     ctx.restore()
     return headerRect
   }
   async drawRandomWeapon (rctx: RandomContext) {
-    const [canvas, ctx] = this.getCanvas(245, 418)
+    const [canvas, ctx] = this.getCanvas(490, 836)
     const { weapons } = splatoon2Data
 
+    ctx.font = '36px HaiPai'
     if (rctx.stages.length === 0) {
       rctx.stages = shuffle(splatoon2Data.stages)
     }
@@ -538,7 +539,7 @@ export class Splatoon2 extends BaseBotModule {
     }
 
     const { h: headerHeight } = this.drawRandomHeader(ctx, rctx.stages.shift()!, rctx.id++)
-    const teamTop = headerHeight + 5
+    const teamTop = headerHeight + 10
     await this.drawTeam(ctx, {
       weapons: rctx.weaponsTeamA.splice(0, 4),
       color: '#de447d',
@@ -551,7 +552,7 @@ export class Splatoon2 extends BaseBotModule {
       color: '#65d244',
       title: 'Beta',
       isBeta: true
-    }, 125, teamTop)
+    }, 250, teamTop)
 
     return canvas.toBuffer('image/png')
   }
