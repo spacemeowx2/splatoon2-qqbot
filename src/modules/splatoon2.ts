@@ -550,7 +550,7 @@ export class Splatoon2 extends BaseBotModule {
     await this.drawTeam(ctx, {
       weapons: rctx.weaponsTeamB.splice(0, 4),
       color: '#65d244',
-      title: 'Beta',
+      title: 'Bravo',
       isBeta: true
     }, 250, teamTop)
 
