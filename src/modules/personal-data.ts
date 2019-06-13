@@ -82,10 +82,13 @@ export class PersonalData extends BaseBotModule {
     if (imageCodes.length === 1) {
       const [imageCode] = imageCodes
       const imgUrl = imageCode.data.url
-      const img = await axios.get<ArrayBuffer>(imgUrl, {
-        responseType: 'arraybuffer'
-      })
-      await this.file.write(key, arrayBufferToBuffer(img.data))
+      if (imgUrl) {
+        // ignore local image type which doesn't have url
+        const img = await axios.get<ArrayBuffer>(imgUrl, {
+          responseType: 'arraybuffer'
+        })
+        await this.file.write(key, arrayBufferToBuffer(img.data))
+      }
     }
 
     return this.mergeCQCode(list.map(i => isCQCode(i) ? new CQCode(LocalImageType, { key }) : i))
