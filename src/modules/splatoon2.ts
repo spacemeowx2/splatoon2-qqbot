@@ -194,8 +194,15 @@ export class Splatoon2 extends BaseBotModule {
           idx = count
         }
       }
+      // 一次查询N张图
+      let picCount = message.split('图').length - 1
+      let result: CQMessageList = []
+      picCount = Math.min(2, picCount)
+      for (let i = 0; i < picCount; i++) {
+        result.push(...await this.getCurrentStage(idx + i))
+      }
       try {
-        return cqStringify([atCode, ...await this.getCurrentStage(idx)])
+        return cqStringify([atCode, ...result])
       } catch (e) {
         console.error(e)
         return `获取地图时出错, 请稍后再试`
