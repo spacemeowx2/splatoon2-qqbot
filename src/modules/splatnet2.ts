@@ -1,11 +1,13 @@
 import { createHash, randomBytes } from 'crypto'
 import { BaseBotModule, BotMessageEvent, BotModuleInitContext, BotMessageType } from '../interface'
-import { cqParse, isCQCode, CQCode, cqGetString } from '../utils/cqcode'
+import { cqParse, isCQCode, CQCode, cqGetString, cqStringify, cqCode } from '../utils/cqcode'
 import { randomIn } from '../utils/helpers'
 import { TSBotEventBus, TSBot } from '../tsbot'
 import axios from 'axios'
 import { parse } from 'url'
 import { createInterface } from 'readline'
+import { createCanvas, registerFont, Canvas, loadImage, Image, CanvasRenderingContext2D } from 'canvas'
+import { BotStorageService } from '../storage'
 
 interface UserSession {
   onMsg: (v: BotMessageEvent) => void
@@ -16,6 +18,9 @@ interface SessionCallbackParam {
   reply(message: string): Promise<void>
 }
 type SessionCallback = (params: SessionCallbackParam) => Promise<void>
+interface UserStorage {
+  iksm: string
+}
 
 class SessionManager {
   private bot: TSBot | undefined
@@ -83,19 +88,59 @@ export class Splatnet2 extends BaseBotModule {
 		'Accept-Language': 'en-US',
 		'Accept':          'application/json',
 		'Content-Type':    'application/x-www-form-urlencoded',
-		'Content-Length':  '540',
-		'Host':            'accounts.nintendo.com',
+		// 'Host':            'accounts.nintendo.com',
 		'Connection':      'Keep-Alive',
 		'Accept-Encoding': 'gzip'
+  } })
+  appReq = axios.create({ headers: {
+		'User-Agent':      'Mozilla/5.0 (Linux; Android 7.1.2; Pixel Build/NJH47D; wv) AppleWebKit/537.36 (KHTML, like Gecko) Version/4.0 Chrome/59.0.3071.125 Mobile Safari/537.36',
+		'Accept-Language': 'en-US',
+		'Accept':          '*/*',
+		'Connection':      'Keep-Alive',
+    'Accept-Encoding': 'gzip',
+    'Referer': 'https://app.splatoon2.nintendo.net/home',
+    'x-requested-with': 'XMLHttpRequest',
+    'x-timezone-offset': '-480'
   } })
 
   init (ctx: BotModuleInitContext) {
     super.init(ctx)
     const { bus } = ctx
     bus.registerMessage([bus.privateFilter], e => this.onPrivateMsg(e))
+    bus.registerMessage([bus.cmdFilter], e => this.onCmdMsg(e))
     this.sm.registerHandler(ctx)
   }
+  private async getLatestBattleUrl (userId: number) {
+    const list = await this.getBattleList(userId)
+    const firstBattleNumber = list[0].battle_number
+    console.log(`user ${userId}, battle number ${firstBattleNumber}`)
+    return await this.getBattleImageUrl(userId, firstBattleNumber)
+  }
+  private getUserCookie (userId: number) {
+    const iksm = this.storage.get<string>(`qq${userId}`)
+    if (!iksm) {
+      throw new Error('没有找到你的iksm')
+    }
+    return { 'Cookie': `iksm_session=${iksm}` }
+  }
+  private async getBattleImageUrl (userId: number, battleNumber: number) {
+    const r = await this.appReq.post<{ url: string }>(`https://app.splatoon2.nintendo.net/api/share/results/${battleNumber}`, '', { headers: {
+      ...this.getUserCookie(userId),
+      'Referer': `https://app.splatoon2.nintendo.net/results/${battleNumber}`
+    } })
+    return r.data.url
+  }
+  private async getBattleList (userId: number) {
+    const r = await this.appReq.get<{ results: {
+      battle_number: number
+    }[] }>(`https://app.splatoon2.nintendo.net/api/results`, { headers: this.getUserCookie(userId) })
+    const { results } = r.data
+    if (results.length <= 0) throw new Error('未找到对战')
+    return results
+  }
+  private drawBattle () {
 
+  }
   private generateRandom (size: number) {
     return this.safeBase64(randomBytes(size).toString('base64'))
   }
@@ -173,11 +218,24 @@ export class Splatnet2 extends BaseBotModule {
     }>('https://accounts.nintendo.com/connect/1.0.0/api/token', this.stringifyParam(params))
     const accessToken = res.data.access_token
   }
-
+  async onCmdMsg (e: BotMessageEvent) {
+    const { message, userId } = e
+    if (['上一场', '上一局'].includes(message)) {
+      try {
+        const url = await this.getLatestBattleUrl(e.userId)
+        console.log(`last battle url ${userId} ${url}`)
+        return cqStringify([new CQCode('at', { qq: userId.toString() }), new CQCode('image', { file: url })])
+      } catch (e) {
+        console.warn(e)
+        return cqStringify([new CQCode('at', { qq: userId.toString() }), e.toString()])
+      }
+    }
+  }
   async onPrivateMsg (e: BotMessageEvent) {
-    const { message } = e
+    const { message, userId } = e
     const msg = message.trim()
     if (msg === '乌贼登录') {
+      return '未完成...'
       const params = this.generateAuthenticationParams()
       this.sm.beginSession(e, async ({ next, reply }) => {
         const nextMsg = async () => cqGetString((await next()).message)
@@ -199,6 +257,15 @@ export class Splatnet2 extends BaseBotModule {
       this.bot.sendPrivateMessage(e.userId, this.createLoginUrl(params))
       return `请在chrome浏览器打开以上链接(请勿在QQ浏览器中打开)
 登录后右键或长按"选择此人", 然后选择"复制链接地址", 将内容回复到此完成登录.`
+    } else {
+      let [cmd, param] = msg.split(' ', 2)
+      param = (param || '').trim()
+      if (cmd === 'iksm') {
+        if (param && param.length > 0) {
+          this.storage.set(`qq${userId}`, param)
+          return `iksm 保存成功`
+        }
+      }
     }
   }
   help (e: BotMessageEvent) {
@@ -230,6 +297,13 @@ export class Splatnet2 extends BaseBotModule {
       const sessionToken = await this.getSessionToken(sessionTokenCode, params.codeVerifier)
     })
   }
+  async debug2 () {
+    const s = new BotStorageService('config.json')
+    await s.load()
+    this.storage = s.getChild('module').getChild('splatnet2')
+
+    await this.getLatestBattleUrl(715746717)
+  }
 }
 
-new Splatnet2().debug()
+// new Splatnet2().debug2().catch(e => console.error(e))
