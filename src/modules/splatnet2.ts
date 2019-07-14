@@ -78,6 +78,7 @@ interface AuthenticationParams {
 }
 
 export class Splatnet2 extends BaseBotModule {
+  private urlCache = new Map<string, string>()
   id = 'splatnet2'
   name = '乌贼战绩查询'
   defaultEnable = true
@@ -124,11 +125,16 @@ export class Splatnet2 extends BaseBotModule {
     return { 'Cookie': `iksm_session=${iksm}` }
   }
   private async getBattleImageUrl (userId: number, battleNumber: number) {
+    const cacheKey = `${userId}.${battleNumber}`
+    const cacheVal = this.urlCache.get(cacheKey)
+    if (cacheVal) return cacheVal
     const r = await this.appReq.post<{ url: string }>(`https://app.splatoon2.nintendo.net/api/share/results/${battleNumber}`, '', { headers: {
       ...this.getUserCookie(userId),
       'Referer': `https://app.splatoon2.nintendo.net/results/${battleNumber}`
     } })
-    return r.data.url
+    const url = r.data.url
+    this.urlCache.set(cacheKey, url)
+    return url
   }
   private async getBattleList (userId: number) {
     const r = await this.appReq.get<{ results: {
