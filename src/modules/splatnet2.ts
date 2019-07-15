@@ -243,7 +243,7 @@ export class Splatnet2 extends BaseBotModule {
       }
       const idx = parseInt(rr[1], 10)
       try {
-        const url = await this.getBattleUrl(e.userId, idx)
+        const url = await this.getBattleUrl(e.userId, idx - 1)
         console.log(`battle(${idx}) url ${userId} ${url}`)
         return cqStringify([new CQCode('at', { qq: userId.toString() }), new CQCode('image', { file: url })])
       } catch (e) {
