@@ -1,14 +1,15 @@
 import { createHash, randomBytes } from 'crypto'
 import { BaseBotModule, BotMessageEvent, BotModuleInitContext, BotMessageType } from '../interface'
 import { cqParse, isCQCode, CQCode, cqGetString, cqStringify, cqCode } from '../utils/cqcode'
-import { randomIn } from '../utils/helpers'
 import { TSBotEventBus, TSBot } from '../tsbot'
 import axios from 'axios'
 import { parse } from 'url'
 import { createInterface } from 'readline'
-import { createCanvas, registerFont, Canvas, loadImage, Image, CanvasRenderingContext2D } from 'canvas'
-import { BotStorageService } from '../storage'
+import { BotStorageService, BotStorage } from '../storage'
+import uuid from 'uuid'
+import moment from 'moment'
 
+const DayLimit = 20
 interface UserSession {
   onMsg: (v: BotMessageEvent) => void
   // callback: SessionCallback
@@ -20,6 +21,15 @@ interface SessionCallbackParam {
 type SessionCallback = (params: SessionCallbackParam) => Promise<void>
 interface UserStorage {
   iksm: string
+  lastUsed: number
+}
+function getDate () {
+  return moment().format('YYYY-MM-DD')
+}
+
+interface RegisterToday {
+  date: string
+  times: number
 }
 
 class SessionManager {
@@ -44,6 +54,7 @@ class SessionManager {
   }
   registerHandler (ctx: BotModuleInitContext) {
     const { bus, bot } = ctx
+    this.bot = bot
     bus.registerMessage([this.inSessionFilter], e => this.onSessionMessage(e))
   }
   beginSession (e: BotMessageEvent, callback: SessionCallback) {
@@ -57,17 +68,18 @@ class SessionManager {
       throw new RangeError('already in a session')
     }
     this.map.set(key, session)
+    const bot = this.bot!
     callback({
       next: () => new Promise<BotMessageEvent>((res) => session.onMsg = res),
       reply: async (msg: string) => {
         if (e.messageType === BotMessageType.Group) {
-          return this.bot!.sendGroupMessage(e.groupId!, msg)
+          return bot.sendGroupMessage(e.groupId!, msg)
         } else if (e.messageType === BotMessageType.Private) {
-          return this.bot!.sendPrivateMessage(e.userId, msg)
+          return bot.sendPrivateMessage(e.userId, msg)
         }
         return
       }
-    }).then(() => this.map.delete(key))
+    }).catch(e => console.error(e)).then(() => this.map.delete(key))
   }
 }
 
@@ -77,8 +89,63 @@ interface AuthenticationParams {
   codeChallenge: string
 }
 
+function stringifyParam (param: Record<string, string>) {
+  return Object.keys(param).map(k => `${k}=${encodeURIComponent(param[k])}`).join('&')
+}
+
+interface RemoteApi {
+  getHash (idToken: string, timestamp: string): Promise<string>
+  callFlapg (idToken: string, guid: string, timestamp: string): Promise<{
+    login_app: {
+      f: string,
+      p1: string,
+      p2: string,
+      p3: string
+    },
+    login_nso: {
+      f: string,
+      p1: string,
+      p2: string
+      p3: string
+    }
+  }>
+}
+
+class WebApi implements RemoteApi {
+  req = axios.create({ headers: {
+		'User-Agent':      'splatoon2-qqbot/1.0',
+  } })
+  async getHash (idToken: string, timestamp: string) {
+    const r = await this.req.post<{hash: string}>('https://elifessler.com/s2s/api/gen2', stringifyParam({
+      'naIdToken': idToken,
+      'timestamp': timestamp
+    }), {
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded'
+      }
+    })
+    return r.data.hash
+  }
+  async callFlapg (idToken: string, guid: string, timestamp: string) {
+    const iid = randomBytes(4).toString('hex')
+    const r = await this.req.get('https://flapg.com/ika2/api/login', { headers: {
+			'x-token': idToken,
+			'x-time':  timestamp,
+			'x-guid':  guid,
+			'x-hash':  await this.getHash(idToken, timestamp),
+			'x-ver':   '2',
+			'x-iid':   iid
+    } })
+    return r.data
+  }
+}
+
 export class Splatnet2 extends BaseBotModule {
+  private registerToday!: RegisterToday
   private urlCache = new Map<string, string>()
+  private rapi: RemoteApi = new WebApi()
+  private renewList: number[] = []
+  private userStorage!: BotStorage<UserStorage>
   id = 'splatnet2'
   name = '乌贼战绩查询'
   defaultEnable = true
@@ -89,7 +156,6 @@ export class Splatnet2 extends BaseBotModule {
 		'Accept-Language': 'en-US',
 		'Accept':          'application/json',
 		'Content-Type':    'application/x-www-form-urlencoded',
-		// 'Host':            'accounts.nintendo.com',
 		'Connection':      'Keep-Alive',
 		'Accept-Encoding': 'gzip'
   } })
@@ -106,10 +172,64 @@ export class Splatnet2 extends BaseBotModule {
 
   init (ctx: BotModuleInitContext) {
     super.init(ctx)
-    const { bus } = ctx
+    const { bus, storage } = ctx
     bus.registerMessage([bus.privateFilter], e => this.onPrivateMsg(e))
     bus.registerMessage([bus.cmdFilter], e => this.onCmdMsg(e))
+    this.userStorage = storage.getChild('user')
     this.sm.registerHandler(ctx)
+    this.renewList = this.storage.get<number[]>('list') || []
+    this.registerToday = this.storage.get<RegisterToday>('register') || {
+      date: getDate(),
+      times: 0
+    }
+
+    const perHour = 60 * 60 * 1000
+    const renew = async () => {
+      try {
+        let toDelete: number[] = []
+        for (const userId of this.renewList) {
+          try {
+            const now = Math.floor(Date.now() / 1000)
+            const us = this.userStorage.get(`qq${userId}`)
+            if (!us) {
+              toDelete.push(userId)
+              continue
+            }
+            if (now - us.lastUsed >= 20 * perHour) {
+              await this.renew(userId)
+            }
+          } catch (e) {
+            console.error('renew error', e)
+          }
+        }
+      } catch (e) {
+        console.error(e)
+      } finally {
+        setTimeout(renew, perHour)
+      }
+    }
+    renew()
+  }
+  private checkRegister () {
+    const today = getDate()
+    if (today === this.registerToday.date) {
+      return this.registerToday.times < DayLimit
+    } else {
+      this.registerToday = {
+        date: today,
+        times: 0
+      }
+      this.storage.set('register', this.registerToday)
+      return true
+    }
+  }
+  private addRegister () {
+    this.registerToday.times += 1
+    this.storage.set('register', this.registerToday)
+  }
+  private async renew(userId: number) {
+    await this.appReq.get(`https://app.splatoon2.nintendo.net/home`, { headers: this.getUserCookie(userId) })
+    this.updateLastUsed(userId)
   }
   private async getBattleUrl (userId: number, index: number = 0) {
     const list = await this.getBattleList(userId)
@@ -117,12 +237,22 @@ export class Splatnet2 extends BaseBotModule {
     console.log(`user ${userId}, battle number ${firstBattleNumber}`)
     return await this.getBattleImageUrl(userId, firstBattleNumber)
   }
-  private getUserCookie (userId: number) {
-    const iksm = this.storage.get<string>(`qq${userId}`)
-    if (!iksm) {
+  private updateLastUsed (userId: number) {
+    const us = this.userStorage.get(`qq${userId}`)
+    if (!us) {
       throw new Error('没有找到你的iksm')
     }
-    return { 'Cookie': `iksm_session=${iksm}` }
+    this.userStorage.set(`qq${userId}`, {
+      ...us,
+      lastUsed: Math.floor(Date.now() / 1000)
+    })
+  }
+  private getUserCookie (userId: number) {
+    const us = this.userStorage.get(`qq${userId}`)
+    if (!us) {
+      throw new Error('没有找到你的iksm')
+    }
+    return { 'Cookie': `iksm_session=${us.iksm}` }
   }
   private async getBattleImageUrl (userId: number, battleNumber: number) {
     const cacheKey = `${userId}.${battleNumber}`
@@ -132,6 +262,7 @@ export class Splatnet2 extends BaseBotModule {
       ...this.getUserCookie(userId),
       'Referer': `https://app.splatoon2.nintendo.net/results/${battleNumber}`
     } })
+    this.updateLastUsed(userId)
     const url = r.data.url
     this.urlCache.set(cacheKey, url)
     return url
@@ -140,6 +271,7 @@ export class Splatnet2 extends BaseBotModule {
     const r = await this.appReq.get<{ results: {
       battle_number: number
     }[] }>(`https://app.splatoon2.nintendo.net/api/results`, { headers: this.getUserCookie(userId) })
+    this.updateLastUsed(userId)
     const { results } = r.data
     if (results.length <= 0) throw new Error('未找到对战')
     return results
@@ -179,9 +311,6 @@ export class Splatnet2 extends BaseBotModule {
     }
     return out
   }
-  private stringifyParam (param: Record<string, string>) {
-    return Object.keys(param).map(k => `${k}=${encodeURIComponent(param[k])}`).join('&')
-  }
   private createLoginUrl ({ state, codeChallenge }: AuthenticationParams) {
     const params: Record<string, string> = {
       state: state,
@@ -209,7 +338,7 @@ export class Splatnet2 extends BaseBotModule {
     const res = await this.req.post<{
       session_token: string,
       code: string
-    }>('https://accounts.nintendo.com/connect/1.0.0/api/session_token', this.stringifyParam(params))
+    }>('https://accounts.nintendo.com/connect/1.0.0/api/session_token', stringifyParam(params))
 
     return res.data.session_token
   }
@@ -219,29 +348,109 @@ export class Splatnet2 extends BaseBotModule {
       session_token: sessionToken,
       grant_type: 'urn:ietf:params:oauth:grant-type:jwt-bearer-session-token'
     }
-    const res = await this.req.post<{
-      access_token: string
-    }>('https://accounts.nintendo.com/connect/1.0.0/api/token', this.stringifyParam(params))
-    const accessToken = res.data.access_token
+    const { data: { access_token: accessToken, id_token: idToken } } = await this.req.post<{
+      access_token: string,
+      id_token: string
+    }>('https://accounts.nintendo.com/connect/1.0.0/api/token', stringifyParam(params))
+
+    const { data: userInfo } = await this.req.get<{
+      country: string,
+      birthday: string,
+      language: string
+    }>('https://api.accounts.nintendo.com/2.0.0/users/me', { headers: {
+      'Authorization': `Bearer ${accessToken}`
+    }})
+
+    const requestId = uuid.v4()
+    const timestamp = Math.floor(Date.now() / 1000).toString()
+    console.log('callflapg')
+    const { login_nso, login_app } = await this.rapi.callFlapg(idToken, requestId, timestamp)
+
+    const zncaReq = axios.create({ headers: {
+      'Connection':      'Keep-Alive',
+      'Accept-Encoding': 'gzip',
+      'User-Agent': 'com.nintendo.znca/1.5.0 (Android/7.1.2)',
+      'Accept-Language': userLang,
+      'Authorization': 'Bearer',
+      'X-Platform': 'Android',
+      'X-ProductVersion': '1.5.0',
+    } })
+    const { data: { result: { webApiServerCredential: { accessToken: splatoonToken } }} } = await zncaReq.post<{
+      result: {
+        webApiServerCredential: {
+          accessToken: string
+        }
+      }
+    }>(`https://api-lp1.znc.srv.nintendo.net/v1/Account/Login`, {
+      parameter: {
+        'f':          login_nso.f,
+        'naIdToken':  idToken,
+        'timestamp':  timestamp,
+        'requestId':  requestId,
+        'naCountry':  userInfo.country,
+        'naBirthday': userInfo.birthday,
+        'language':   userInfo.language
+      }
+    })
+
+    const { data: { result: { accessToken: splatoonAccessToken } } } = await zncaReq.post<{
+      result: {
+        accessToken: string,
+        expiresIn: number
+      }
+    }>(`https://api-lp1.znc.srv.nintendo.net/v2/Game/GetWebServiceToken`, {
+      parameter: {
+          'id':                5741031244955648,
+          'f':                 login_app.f,
+          'registrationToken': login_app.p1,
+          'timestamp':         login_app.p2,
+          'requestId':         login_app.p3
+      }
+    }, {
+      headers: {
+        'Authorization': `Bearer ${splatoonToken}`
+      }
+    })
+
+    const r = await axios.get(`https://app.splatoon2.nintendo.net/?lang=${userLang}`, { headers: {
+      'X-IsAppAnalyticsOptedIn': 'false',
+      'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+      'Accept-Encoding': 'gzip,deflate',
+      'X-GameWebToken': splatoonAccessToken,
+      'Accept-Language': userLang,
+      'X-IsAnalyticsOptedIn': 'false',
+      'User-Agent': 'Mozilla/5.0 (Linux; Android 7.1.2; Pixel Build/NJH47D; wv) AppleWebKit/537.36 (KHTML, like Gecko) Version/4.0 Chrome/59.0.3071.125 Mobile Safari/537.36',
+      'X-Requested-With': 'com.nintendo.znca'
+    } })
+    const re = /iksm_session=([a-f0-9]+);/
+    let iksmSession: string = ''
+    for (const h of r.headers['set-cookie'] as string[]) {
+      if (re.test(h)) {
+        const rr = re.exec(h)
+        if (!rr) throw new Error('解析Cookie出错')
+        iksmSession = rr[1]
+      }
+    }
+    if (!iksmSession) {
+      throw new Error('获取Cookie失败')
+    }
+    return iksmSession
   }
   async onCmdMsg (e: BotMessageEvent) {
     const { message, userId } = e
-    const re = /上(\d+)(局|场)/
-    if (['上一场', '上一局'].includes(message)) {
-      try {
-        const url = await this.getBattleUrl(e.userId)
-        console.log(`last battle url ${userId} ${url}`)
-        return cqStringify([new CQCode('at', { qq: userId.toString() }), new CQCode('image', { file: url })])
-      } catch (e) {
-        console.warn(e)
-        return cqStringify([new CQCode('at', { qq: userId.toString() }), e.toString()])
-      }
-    } else if (re.test(message)) {
+    const re = /^\s*上([\d一]*)(局|场)\s*$/
+    if (re.test(message)) {
       const rr = re.exec(message)
       if (!rr) {
         return
       }
-      const idx = parseInt(rr[1], 10)
+      const idxStr = rr[1]
+      let idx: number
+      if (idxStr === '一' || idxStr === '') {
+        idx = 1
+      } else {
+        idx = parseInt(rr[1], 10)
+      }
       try {
         const url = await this.getBattleUrl(e.userId, idx - 1)
         console.log(`battle(${idx}) url ${userId} ${url}`)
@@ -256,7 +465,15 @@ export class Splatnet2 extends BaseBotModule {
     const { message, userId } = e
     const msg = message.trim()
     if (msg === '乌贼登录') {
-      return '未完成...'
+      if (!this.checkRegister()) {
+        return `今日注册用户已达限制: ${this.registerToday.times}, 请明天0点再来`
+      }
+      try {
+        if (this.getUserCookie(userId)) {
+          return '你已经登录, 如需重新登录请先发送 "乌贼退出登录"'
+        }
+      } catch {}
+
       const params = this.generateAuthenticationParams()
       this.sm.beginSession(e, async ({ next, reply }) => {
         const nextMsg = async () => cqGetString((await next()).message)
@@ -269,21 +486,39 @@ export class Splatnet2 extends BaseBotModule {
             message = await nextMsg()
             continue
           }
-          const loginParam = this.parseHash(hash)
-          const sessionTokenCode = loginParam['session_token_code']
-          await this.getSessionToken(sessionTokenCode, params.codeVerifier)
+          try {
+            const loginParam = this.parseHash(hash)
+            const sessionTokenCode = loginParam['session_token_code']
+            console.log('get session token code')
+            const sessionToken = await this.getSessionToken(sessionTokenCode, params.codeVerifier)
+            const iksm = await this.getCookie(sessionToken, 'en-US')
+            this.saveIksm(userId, iksm)
+
+            this.addRegister()
+            reply('登录成功')
+          } catch (e) {
+            console.error(e)
+          }
+
           break
         }
       })
       this.bot.sendPrivateMessage(e.userId, this.createLoginUrl(params))
       return `请在chrome浏览器打开以上链接(请勿在QQ浏览器中打开)
 登录后右键或长按"选择此人", 然后选择"复制链接地址", 将内容回复到此完成登录.`
+    } else if (msg === '乌贼退出登录') {
+      const id = this.renewList.indexOf(userId)
+      if (id === -1) return '未找到你的登录信息'
+      this.userStorage.del(`qq${userId}`)
+      this.renewList.splice(id, 1)
+      this.storage.set('list', this.renewList)
+      return '退出成功'
     } else {
       let [cmd, param] = msg.split(' ', 2)
       param = (param || '').trim()
       if (cmd === 'iksm') {
         if (param && param.length > 0) {
-          this.storage.set(`qq${userId}`, param)
+          this.saveIksm(userId, param)
           return `iksm 保存成功`
         }
       }
@@ -298,33 +533,12 @@ export class Splatnet2 extends BaseBotModule {
     }
     return ''
   }
-  async debug () {
-    const rl = createInterface({
-      input: process.stdin,
-      output: process.stdout
+  private saveIksm (userId: number, iksm: string) {
+    this.userStorage.set(`qq${userId}`, {
+      iksm,
+      lastUsed: 0
     })
-    const params = this.generateAuthenticationParams()
-    const url = this.createLoginUrl(params)
-    rl.question(`${url}\n`, async (message) => {
-      const url = parse(message)
-      const hash = url.hash
-      if (url.protocol !== 'npf71b963c1b7b6d119:' || !hash) {
-        rl.write('wrong url')
-        return
-      }
-      const loginParam = this.parseHash(hash)
-      const sessionTokenCode = loginParam['session_token_code']
-      console.log('session token code', sessionTokenCode)
-      const sessionToken = await this.getSessionToken(sessionTokenCode, params.codeVerifier)
-    })
-  }
-  async debug2 () {
-    const s = new BotStorageService('config.json')
-    await s.load()
-    this.storage = s.getChild('module').getChild('splatnet2')
-
-    await this.getBattleUrl(715746717)
+    this.renewList.push(userId)
+    this.storage.set('list', this.renewList)
   }
 }
-
-// new Splatnet2().debug2().catch(e => console.error(e))
