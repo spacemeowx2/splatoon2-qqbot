@@ -216,10 +216,10 @@ export class TSBot implements BotModule {
   }
   tsbotFilter: AnyFilter = (e, ctx) => {
     if (isBotMessageEvent(e)) {
-    if (this.blackList.includes(e.userId)) {
-      return false
-    }
-    if (this.groupEnabled) {
+      if (this.blackList.includes(e.userId)) {
+        return false
+      }
+      if (this.groupEnabled) {
         return this.groupEnabled(e, ctx)
       }
       return true

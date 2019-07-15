@@ -1,4 +1,4 @@
-import { BaseBotModule, BotModuleInitContext, BotMessageType, BotModule, BotRequestEvent, BotMessageEvent, AnyFilter, BotRequestType, BotRequestSubType, isBotMessageEvent } from '../interface'
+import { BaseBotModule, BotModuleInitContext, BotMessageType, BotModule, BotRequestEvent, BotMessageEvent, AnyFilter, BotRequestType, BotRequestSubType, isBotMessageEvent, MessageFilter } from '../interface'
 import { BotStorage } from '../storage'
 
 const RequestTimeout = 24 * 60 * 60 * 1000 // 1day
@@ -251,7 +251,7 @@ export class AdminControl extends BaseBotModule {
     }
     return ret
   }
-  enabledFilter: AnyFilter = (e, { module: m }) => {
+  enabledFilter: MessageFilter = (e, { module: m }) => {
     if (isBotMessageEvent(e)) {
       if (e.messageType === BotMessageType.Group) {
         let r = this.isModuleEnabled(e.groupId!, m)
