@@ -111,9 +111,9 @@ export class Splatnet2 extends BaseBotModule {
     bus.registerMessage([bus.cmdFilter], e => this.onCmdMsg(e))
     this.sm.registerHandler(ctx)
   }
-  private async getLatestBattleUrl (userId: number) {
+  private async getBattleUrl (userId: number, index: number = 0) {
     const list = await this.getBattleList(userId)
-    const firstBattleNumber = list[0].battle_number
+    const firstBattleNumber = list[index].battle_number
     console.log(`user ${userId}, battle number ${firstBattleNumber}`)
     return await this.getBattleImageUrl(userId, firstBattleNumber)
   }
@@ -226,10 +226,25 @@ export class Splatnet2 extends BaseBotModule {
   }
   async onCmdMsg (e: BotMessageEvent) {
     const { message, userId } = e
+    const re = /上(\d+)(局|场)/
     if (['上一场', '上一局'].includes(message)) {
       try {
-        const url = await this.getLatestBattleUrl(e.userId)
+        const url = await this.getBattleUrl(e.userId)
         console.log(`last battle url ${userId} ${url}`)
+        return cqStringify([new CQCode('at', { qq: userId.toString() }), new CQCode('image', { file: url })])
+      } catch (e) {
+        console.warn(e)
+        return cqStringify([new CQCode('at', { qq: userId.toString() }), e.toString()])
+      }
+    } else if (re.test(message)) {
+      const rr = re.exec(message)
+      if (!rr) {
+        return
+      }
+      const idx = parseInt(rr[1], 10)
+      try {
+        const url = await this.getBattleUrl(e.userId, idx)
+        console.log(`battle(${idx}) url ${userId} ${url}`)
         return cqStringify([new CQCode('at', { qq: userId.toString() }), new CQCode('image', { file: url })])
       } catch (e) {
         console.warn(e)
@@ -308,7 +323,7 @@ export class Splatnet2 extends BaseBotModule {
     await s.load()
     this.storage = s.getChild('module').getChild('splatnet2')
 
-    await this.getLatestBattleUrl(715746717)
+    await this.getBattleUrl(715746717)
   }
 }
 
