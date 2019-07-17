@@ -196,6 +196,7 @@ export class Splatnet2 extends BaseBotModule {
               continue
             }
             if (now - us.lastUsed >= 20 * perHour) {
+              console.log('renew', userId)
               await this.renew(userId)
             }
           } catch (e) {
@@ -228,8 +229,7 @@ export class Splatnet2 extends BaseBotModule {
     this.storage.set('register', this.registerToday)
   }
   private async renew(userId: number) {
-    await this.appReq.get(`https://app.splatoon2.nintendo.net/home`, { headers: this.getUserCookie(userId) })
-    this.updateLastUsed(userId)
+    await this.getBattleList(userId)
   }
   private async getBattleUrl (userId: number, index: number = 0) {
     const list = await this.getBattleList(userId)
