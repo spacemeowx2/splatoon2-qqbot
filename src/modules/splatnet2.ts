@@ -1,15 +1,16 @@
 import { createHash, randomBytes } from 'crypto'
 import { BaseBotModule, BotMessageEvent, BotModuleInitContext, BotMessageType } from '../interface'
-import { cqParse, isCQCode, CQCode, cqGetString, cqStringify, cqCode } from '../utils/cqcode'
-import { TSBotEventBus, TSBot } from '../tsbot'
+import { CQCode, cqGetString, cqStringify, cqCode } from '../utils/cqcode'
+import { TSBot } from '../tsbot'
 import axios, { AxiosError } from 'axios'
 import { parse } from 'url'
-import { createInterface } from 'readline'
-import { BotStorageService, BotStorage } from '../storage'
+import { BotStorage } from '../storage'
 import uuid from 'uuid'
 import moment from 'moment'
 
-const DayLimit = 20
+const ErrStorNotFound = '没有找到你的登录状态, 请私聊 "乌贼登录" 后再使用'
+const DayLimit = 10
+
 interface UserSession {
   onMsg: (v: BotMessageEvent) => void
   // callback: SessionCallback
@@ -261,7 +262,7 @@ export class Splatnet2 extends BaseBotModule {
   private updateLastUsed (userId: number) {
     const us = this.userStorage.get(`qq${userId}`)
     if (!us) {
-      throw new Error('没有找到你的iksm')
+      throw new Error(ErrStorNotFound)
     }
     this.userStorage.set(`qq${userId}`, {
       ...us,
@@ -271,7 +272,7 @@ export class Splatnet2 extends BaseBotModule {
   private getUserCookie (userId: number) {
     const us = this.userStorage.get(`qq${userId}`)
     if (!us) {
-      throw new Error('没有找到你的iksm')
+      throw new Error(ErrStorNotFound)
     }
     return { 'Cookie': `iksm_session=${us.iksm}` }
   }
@@ -473,6 +474,9 @@ export class Splatnet2 extends BaseBotModule {
         idx = parseInt(rr[1], 10)
       }
       try {
+        if (idx > 50 || idx < 1) {
+          throw new Error(`输入的数字不对: ${idx}, 取值范围 [1, 50]`)
+        }
         const url = await this.getBattleUrl(e.userId, idx - 1)
         console.log(`battle(${idx}) url ${userId} ${url}`)
         return cqStringify([new CQCode('at', { qq: userId.toString() }), new CQCode('image', { file: url })])
@@ -489,6 +493,12 @@ export class Splatnet2 extends BaseBotModule {
   async onPrivateMsg (e: BotMessageEvent) {
     const { message, userId } = e
     const msg = message.trim()
+    if (msg === '乌贼登陆') {
+      return '你要输入的是不是 "乌贼登录" ?'
+    }
+    if (msg === '乌贼退出登陆') {
+      return '你要输入的是不是 "乌贼退出登录" ?'
+    }
     if (msg === '乌贼登录') {
       if (!this.checkRegister()) {
         return `今日注册用户已达限制: ${this.registerToday.times}, 请明天0点再来`
@@ -528,8 +538,8 @@ export class Splatnet2 extends BaseBotModule {
           break
         }
       })
-      this.bot.sendPrivateMessage(e.userId, this.createLoginUrl(params))
-      return `请在chrome浏览器打开以上链接(请勿在QQ浏览器中打开)
+      this.bot.sendPrivateMessage(userId, this.createLoginUrl(params))
+      return `QQ用户 ${userId}: 请在chrome浏览器打开以上链接(请勿在QQ浏览器中打开)
 登录后右键或长按"选择此人", 然后选择"复制链接地址", 将内容回复到此完成登录.`
     } else if (msg === '乌贼退出登录') {
       const id = this.renewList.indexOf(userId)
