@@ -9,7 +9,7 @@ import uuid from 'uuid'
 import moment from 'moment'
 
 const ErrStorNotFound = '没有找到你的登录状态, 请私聊 "乌贼登录" 后再使用'
-const DayLimit = 10
+const DayLimit = 20
 
 interface UserSession {
   onMsg: (v: BotMessageEvent) => void
