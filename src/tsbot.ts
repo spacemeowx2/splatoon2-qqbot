@@ -312,11 +312,12 @@ export class TSBot implements BotModule {
     const msg = cqGetString(e.message)
     const keyword = ['help', '菜单', '帮助', '?', '使用说明']
 
-    for (let k of keyword) {
-      if (msg.includes(k)) {
-        return true
-      }
-    }
+    // for (let k of keyword) {
+    //   if (msg.includes(k)) {
+    //     return true
+    //   }
+    // }
+    return keyword.includes(e.message.trim())
 
     return false
   }
