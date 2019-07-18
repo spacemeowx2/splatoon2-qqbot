@@ -513,7 +513,7 @@ export class Splatnet2 extends BaseBotModule {
       this.sm.beginSession(e, async ({ next, reply }) => {
         const nextMsg = async () => cqGetString((await next()).message)
         let message = await nextMsg()
-        while (!message.includes('放弃登录')) {
+        while (!message.includes('放弃机会')) {
           const url = parse(message)
           const hash = url.hash
           if (url.protocol !== 'npf71b963c1b7b6d119:' || !hash) {
