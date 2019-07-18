@@ -65,7 +65,7 @@ async function main () {
       appKey: process.env.QQAI_APPKEY
     }))
   }
-  bot.connect()
+  await bot.connect()
 }
 
 main().catch(e => console.error(e))

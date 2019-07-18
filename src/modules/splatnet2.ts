@@ -2,7 +2,7 @@ import { createHash, randomBytes } from 'crypto'
 import { BaseBotModule, BotMessageEvent, BotModuleInitContext, BotMessageType } from '../interface'
 import { cqParse, isCQCode, CQCode, cqGetString, cqStringify, cqCode } from '../utils/cqcode'
 import { TSBotEventBus, TSBot } from '../tsbot'
-import axios from 'axios'
+import axios, { AxiosError } from 'axios'
 import { parse } from 'url'
 import { createInterface } from 'readline'
 import { BotStorageService, BotStorage } from '../storage'
@@ -185,6 +185,7 @@ export class Splatnet2 extends BaseBotModule {
 
     const perHour = 60 * 60 * 1000
     const renew = async () => {
+      console.log('check renew', this.renewList.length)
       try {
         let toDelete: number[] = []
         for (const userId of this.renewList) {
@@ -195,12 +196,14 @@ export class Splatnet2 extends BaseBotModule {
               toDelete.push(userId)
               continue
             }
-            if (now - us.lastUsed >= 20 * perHour) {
+            // 20 hours
+            if (now - us.lastUsed >= 20 * 60 * 60) {
               console.log('renew', userId)
               await this.renew(userId)
             }
           } catch (e) {
             console.error('renew error', e)
+            this.checkErr(userId, e)
           }
         }
       } catch (e) {
@@ -210,6 +213,24 @@ export class Splatnet2 extends BaseBotModule {
       }
     }
     renew()
+  }
+  private is403 (e: any) {
+    if (e.response) {
+      const err = e as AxiosError
+      return err.response!.status === 403
+    }
+    return false
+  }
+  private checkErr (userId: number, e: any) {
+    if (this.is403(e)) {
+      console.warn(`user ${userId} got 403. delete iksm`)
+      const id = this.renewList.indexOf(userId)
+      if (id === -1) return
+      this.userStorage.del(`qq${userId}`)
+      this.renewList.splice(id, 1)
+      this.storage.set('list', this.renewList)
+      this.bot.sendPrivateMessage(userId, `QQ用户 ${userId}: 您的乌贼登录状态已经失效, 要使用战绩功能请重新登录`)
+    }
   }
   private checkRegister () {
     const today = getDate()
@@ -457,6 +478,10 @@ export class Splatnet2 extends BaseBotModule {
         return cqStringify([new CQCode('at', { qq: userId.toString() }), new CQCode('image', { file: url })])
       } catch (e) {
         console.warn(e)
+        this.checkErr(userId, e)
+        if (this.is403(e)) {
+          e = '登录状态已失效, 请重新登录'
+        }
         return cqStringify([new CQCode('at', { qq: userId.toString() }), e.toString()])
       }
     }
@@ -528,8 +553,7 @@ export class Splatnet2 extends BaseBotModule {
     if (e.messageType === BotMessageType.Group) {
       return `@bot 上一场`
     } else {
-      return `乌贼登录: 登录乌贼账号
-乌贼状态: 返回当前QQ绑定乌贼账号的状态`
+      return `乌贼登录: 登录乌贼账号`
     }
     return ''
   }
@@ -538,7 +562,9 @@ export class Splatnet2 extends BaseBotModule {
       iksm,
       lastUsed: 0
     })
-    this.renewList.push(userId)
+    if (!this.renewList.includes(userId)) {
+      this.renewList.push(userId)
+    }
     this.storage.set('list', this.renewList)
   }
 }
