@@ -532,7 +532,7 @@ export class Splatnet2 extends BaseBotModule {
               console.log('get session token code', userId)
               const sessionToken = await this.getSessionToken(sessionTokenCode, params.codeVerifier)
               console.log('get cookie', userId)
-              const iksm = await this.getCookie(sessionToken, 'en-US')
+              const iksm = await this.getCookie(sessionToken, 'en-US', userId)
               this.saveIksm(userId, iksm)
 
               this.addRegister()
