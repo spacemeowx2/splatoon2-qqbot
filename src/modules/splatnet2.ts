@@ -518,7 +518,7 @@ export class Splatnet2 extends BaseBotModule {
             const url = parse(message)
             const hash = url.hash
             if (url.protocol !== 'npf71b963c1b7b6d119:' || !hash) {
-              reply('网址有误, 请重新输入. 回复"放弃机会"放弃这次登录')
+              reply('网址有误, 请重新输入. 请注意网址要以 "npf71b963c1b7b6d119:" 开头. 回复"放弃机会"放弃这次登录')
               message = await nextMsg()
               continue
             }
