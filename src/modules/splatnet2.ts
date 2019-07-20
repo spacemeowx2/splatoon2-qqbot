@@ -9,7 +9,7 @@ import uuid from 'uuid'
 import moment from 'moment'
 
 const ErrStorNotFound = '没有找到你的登录状态, 请私聊 "乌贼登录" 后再使用'
-const DayLimit = 20
+let DayLimit = 20
 
 interface UserSession {
   onMsg: (v: BotMessageEvent) => void
@@ -510,37 +510,44 @@ export class Splatnet2 extends BaseBotModule {
       } catch {}
 
       const params = this.generateAuthenticationParams()
-      this.sm.beginSession(e, async ({ next, reply }) => {
-        const nextMsg = async () => cqGetString((await next()).message)
-        let message = await nextMsg()
-        while (!message.includes('放弃机会')) {
-          const url = parse(message)
-          const hash = url.hash
-          if (url.protocol !== 'npf71b963c1b7b6d119:' || !hash) {
-            reply('网址有误, 请重新输入. 回复"放弃机会"放弃这次登录')
-            message = await nextMsg()
-            continue
-          }
-          try {
-            const loginParam = this.parseHash(hash)
-            const sessionTokenCode = loginParam['session_token_code']
-            console.log('get session token code')
-            const sessionToken = await this.getSessionToken(sessionTokenCode, params.codeVerifier)
-            const iksm = await this.getCookie(sessionToken, 'en-US')
-            this.saveIksm(userId, iksm)
+      try {
+        this.sm.beginSession(e, async ({ next, reply }) => {
+          const nextMsg = async () => cqGetString((await next()).message)
+          let message = await nextMsg()
+          while (!message.includes('放弃机会')) {
+            const url = parse(message)
+            const hash = url.hash
+            if (url.protocol !== 'npf71b963c1b7b6d119:' || !hash) {
+              reply('网址有误, 请重新输入. 回复"放弃机会"放弃这次登录')
+              message = await nextMsg()
+              continue
+            }
+            try {
+              const loginParam = this.parseHash(hash)
+              const sessionTokenCode = loginParam['session_token_code']
+              console.log('get session token code')
+              const sessionToken = await this.getSessionToken(sessionTokenCode, params.codeVerifier)
+              const iksm = await this.getCookie(sessionToken, 'en-US')
+              this.saveIksm(userId, iksm)
 
-            this.addRegister()
-            reply('登录成功')
-          } catch (e) {
-            console.error(e)
-          }
+              this.addRegister()
+              reply('登录成功')
+            } catch (e) {
+              reply('登录出错')
+              console.error(userId, 'login error', e)
+            }
 
-          break
-        }
-      })
-      this.bot.sendPrivateMessage(userId, this.createLoginUrl(params))
-      return `QQ用户 ${userId}: 请在chrome浏览器打开以上链接(请勿在QQ浏览器中打开)
-登录后右键或长按"选择此人", 然后选择"复制链接地址", 将内容回复到此完成登录.`
+            break
+          }
+          reply('已经取消登录')
+        })
+        this.bot.sendPrivateMessage(userId, this.createLoginUrl(params))
+        return `QQ用户 ${userId}: 请在chrome浏览器打开以上链接(请勿在QQ浏览器中打开)
+  登录后右键或长按"选择此人", 然后选择"复制链接地址", 将内容回复到此完成登录.`
+      } catch (e) {
+        console.error(e)
+        return `出错了: ${e}`
+      }
     } else if (msg === '乌贼退出登录') {
       const id = this.renewList.indexOf(userId)
       if (id === -1) return '未找到你的登录信息'
