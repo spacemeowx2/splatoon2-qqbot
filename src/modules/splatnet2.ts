@@ -23,6 +23,7 @@ type SessionCallback = (params: SessionCallbackParam) => Promise<void>
 interface UserStorage {
   iksm: string
   lastUsed: number
+  lastCall?: number
 }
 function getDate () {
   return moment().format('YYYY-MM-DD')
@@ -269,6 +270,16 @@ export class Splatnet2 extends BaseBotModule {
       lastUsed: Math.floor(Date.now() / 1000)
     })
   }
+  private updateLastCall (userId: number) {
+    const us = this.userStorage.get(`qq${userId}`)
+    if (!us) {
+      throw new Error(ErrStorNotFound)
+    }
+    this.userStorage.set(`qq${userId}`, {
+      ...us,
+      lastCall: Math.floor(Date.now() / 1000)
+    })
+  }
   private getUserCookie (userId: number) {
     const us = this.userStorage.get(`qq${userId}`)
     if (!us) {
@@ -482,6 +493,7 @@ export class Splatnet2 extends BaseBotModule {
           throw new Error(`输入的数字不对: ${idx}, 取值范围 [1, 50]`)
         }
         const url = await this.getBattleUrl(e.userId, idx - 1)
+        this.updateLastCall(userId)
         console.log(`battle(${idx}) url ${userId} ${url}`)
         return cqStringify([new CQCode('at', { qq: userId.toString() }), new CQCode('image', { file: url })])
       } catch (e) {
