@@ -364,17 +364,18 @@ export class Splatnet2 extends BaseBotModule {
 
     return res.data.session_token
   }
-  private async getCookie (sessionToken: string, userLang: string) {
-    const params: Record<string, string> = {
-      client_id: '71b963c1b7b6d119',
-      session_token: sessionToken,
-      grant_type: 'urn:ietf:params:oauth:grant-type:jwt-bearer-session-token'
-    }
+  private async getCookie (sessionToken: string, userLang: string, userId: number) {
+    console.log('/connect/1.0.0/api/token', userId)
     const { data: { access_token: accessToken, id_token: idToken } } = await this.req.post<{
       access_token: string,
       id_token: string
-    }>('https://accounts.nintendo.com/connect/1.0.0/api/token', stringifyParam(params))
+    }>('https://accounts.nintendo.com/connect/1.0.0/api/token', stringifyParam({
+      client_id: '71b963c1b7b6d119',
+      session_token: sessionToken,
+      grant_type: 'urn:ietf:params:oauth:grant-type:jwt-bearer-session-token'
+    }))
 
+    console.log('/2.0.0/users/me', userId)
     const { data: userInfo } = await this.req.get<{
       country: string,
       birthday: string,
@@ -385,7 +386,7 @@ export class Splatnet2 extends BaseBotModule {
 
     const requestId = uuid.v4()
     const timestamp = Math.floor(Date.now() / 1000).toString()
-    console.log('callflapg')
+    console.log('callflapg', userId)
     const { login_nso, login_app } = await this.rapi.callFlapg(idToken, requestId, timestamp)
 
     const zncaReq = axios.create({ headers: {
@@ -397,6 +398,7 @@ export class Splatnet2 extends BaseBotModule {
       'X-Platform': 'Android',
       'X-ProductVersion': '1.5.0',
     } })
+    console.log('/v1/Account/Login', userId)
     const { data: { result: { webApiServerCredential: { accessToken: splatoonToken } }} } = await zncaReq.post<{
       result: {
         webApiServerCredential: {
@@ -415,6 +417,7 @@ export class Splatnet2 extends BaseBotModule {
       }
     })
 
+    console.log('/v2/Game/GetWebServiceToken', userId)
     const { data: { result: { accessToken: splatoonAccessToken } } } = await zncaReq.post<{
       result: {
         accessToken: string,
@@ -434,6 +437,7 @@ export class Splatnet2 extends BaseBotModule {
       }
     })
 
+    console.log('app.splatoon2.nintendo.net', userId)
     const r = await axios.get(`https://app.splatoon2.nintendo.net/?lang=${userLang}`, { headers: {
       'X-IsAppAnalyticsOptedIn': 'false',
       'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
@@ -525,13 +529,15 @@ export class Splatnet2 extends BaseBotModule {
             try {
               const loginParam = this.parseHash(hash)
               const sessionTokenCode = loginParam['session_token_code']
-              console.log('get session token code')
+              console.log('get session token code', userId)
               const sessionToken = await this.getSessionToken(sessionTokenCode, params.codeVerifier)
+              console.log('get cookie', userId)
               const iksm = await this.getCookie(sessionToken, 'en-US')
               this.saveIksm(userId, iksm)
 
               this.addRegister()
               reply('登录成功')
+              return
             } catch (e) {
               reply('登录出错')
               console.error(userId, 'login error', e)
