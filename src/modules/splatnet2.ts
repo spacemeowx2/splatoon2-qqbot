@@ -7,6 +7,7 @@ import { parse } from 'url'
 import { BotStorage } from '../storage'
 import uuid from 'uuid'
 import moment from 'moment'
+import { sleep } from '../utils/helpers'
 
 const ErrStorNotFound = '没有找到你的登录状态, 请私聊 "乌贼登录" 后再使用'
 let DayLimit = 20
@@ -207,6 +208,7 @@ export class Splatnet2 extends BaseBotModule {
             console.error('renew error', e)
             this.checkErr(userId, e)
           }
+          await sleep(30 * 1000)
         }
       } catch (e) {
         console.error(e)
