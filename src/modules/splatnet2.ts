@@ -227,13 +227,13 @@ export class Splatnet2 extends BaseBotModule {
   }
   private checkErr (userId: number, e: any) {
     if (this.is403(e)) {
-      console.warn(`user ${userId} got 403. delete iksm`)
-      const id = this.renewList.indexOf(userId)
-      if (id === -1) return
-      this.userStorage.del(`qq${userId}`)
-      this.renewList.splice(id, 1)
-      this.storage.set('list', this.renewList)
-      this.bot.sendPrivateMessage(userId, `QQ用户 ${userId}: 您的乌贼登录状态已经失效, 要使用战绩功能请重新登录`)
+      // console.warn(`user ${userId} got 403. delete iksm`)
+      // const id = this.renewList.indexOf(userId)
+      // if (id === -1) return
+      // this.userStorage.del(`qq${userId}`)
+      // this.renewList.splice(id, 1)
+      // this.storage.set('list', this.renewList)
+      // this.bot.sendPrivateMessage(userId, `QQ用户 ${userId}: 您的乌贼登录状态已经失效, 要使用战绩功能请重新登录`)
     }
   }
   private checkRegister () {
