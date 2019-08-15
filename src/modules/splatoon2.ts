@@ -5,6 +5,7 @@ import path from 'path'
 import moment from 'moment'
 import { stat as statAsync, readFile as readFileAsync, writeFileSync } from 'fs'
 import { promisify } from 'util'
+import { assign, flatten, invert } from 'lodash'
 import { shuffle, randomIn } from '../utils/helpers'
 import { CQCode, cqStringify, CQMessageList } from '../utils/cqcode'
 const stat = promisify(statAsync)
@@ -78,6 +79,14 @@ interface Stage {
   name: string
 }
 
+type ModesType = 'gachi' | 'league' | 'regular'
+const ModeTranslate: Record<ModesType, string> = {
+  'gachi': '单排',
+  'league': '组排',
+  'regular': '常规'
+}
+const ModeReverseTranslate: Record<string, ModesType> = invert(ModeTranslate) as Record<string, ModesType>
+
 type RulesType = 'rainmaker' | 'clam_blitz' | 'tower_control' | 'splat_zones' | 'turf_war'
 interface Rule {
   start_time: number
@@ -94,6 +103,20 @@ interface Rule {
     name: string
   }
 }
+const RuleTranslate: Record<RulesType, string> = {
+  'splat_zones': '区域',
+  'tower_control': '塔',
+  'clam_blitz': '蛤蜊',
+  'rainmaker': '鱼',
+  'turf_war': '涂地'
+}
+const RuleReverseTranslate: Record<string, RulesType> = assign(invert(RuleTranslate), {
+  // 更多别称（似乎都是占啊抢啊的 2333）
+  '占地': 'splat_zones',
+  '抢塔': 'tower_control',
+  '抢蛤': 'clam_blitz',
+  '抢鱼': 'rainmaker'
+}) as Record<string, RulesType>
 
 type StageTypes = 'league' | 'regular' | 'gachi'
 
@@ -137,14 +160,6 @@ interface CoopSchedule {
 
 interface CoopSchedules {
   details: CoopSchedule[]
-}
-
-const RuleTranslate: Record<RulesType, string> = {
-  'splat_zones': '区域',
-  'tower_control': '塔',
-  'clam_blitz': '蛤蜊',
-  'rainmaker': '鱼',
-  'turf_war': '涂地'
 }
 
 export class Splatoon2 extends BaseBotModule {
@@ -206,6 +221,23 @@ export class Splatoon2 extends BaseBotModule {
       } catch (e) {
         console.error(e)
         return `获取地图时出错, 请稍后再试`
+      }
+    } else if (message.includes('排')) {
+      // 查询下一场单排组排某模式，如“单排蛤蜊”、“组排鱼”
+      const mode: ModesType = ModeReverseTranslate[`${message.replace('.', '').split('排')[0]}排`]
+      if (!mode) {
+        return `错误的关键词，请输入单排或组排~`
+      }
+      const rule: RulesType = RuleReverseTranslate[message.replace('.', '').split('排')[1].trim().replace('们', '')]
+      if (!rule || rule === 'turf_war') {
+        return `错误的模式，请输入区域/塔/蛤蜊/鱼`
+      }
+      let multiple = message.includes('们')
+      try {
+        return cqStringify([atCode, ...await this.getStagesByModeAndRule(mode, rule, multiple)])
+      } catch (e) {
+        console.error(e)
+        return `获取地图时出错，请稍后再试`
       }
     }
   }
@@ -652,7 +684,7 @@ export class Splatoon2 extends BaseBotModule {
       file: `base64://${buffer.toString('base64')}`
     })]
   }
-  private async getCurrentStage (idx: number = 0) {
+  private async loadCurrentStages (): Promise<Schedules> {
     const now = Date.now()
     let cache = this.stageCache
     if (!cache || cache.league[0].end_time < Math.floor(now / 1000)) {
@@ -661,20 +693,25 @@ export class Splatoon2 extends BaseBotModule {
       this.stageCache = cache
       this.stageCacheMsg.clear()
     }
+    return cache
+  }
+  private async getCurrentStage (idx: number = 0): Promise<CQMessageList> {
+    const cache = await this.loadCurrentStages()
     if (this.stageCacheMsg.has(idx)) {
       return this.stageCacheMsg.get(idx)!
     }
 
-    console.log('msg not found in cache, start drawing')
-    const startTime = Date.now()
     const regular = cache.regular[idx]
     const gachi = cache.gachi[idx]
     const league = cache.league[idx]
 
     let msg: CQMessageList = []
     if (this.bot.isPro) {
+      console.log('msg not found in cache, start drawing')
+      const startTime = Date.now()
       const buffer = await this.drawSchedule({ regular, gachi, league })
       msg = this.getCQImage(buffer)
+      console.log(`drawing done, spend ${Date.now() - startTime}ms`)
     } else {
       msg = [(
         `涂地: ${regular.stage_a.name}, ${regular.stage_b.name}\n` +
@@ -683,8 +720,18 @@ export class Splatoon2 extends BaseBotModule {
       )]
     }
 
-    console.log(`drawing done, spend ${Date.now() - startTime}ms`)
     this.stageCacheMsg.set(idx, msg)
+    return msg
+  }
+  private async getStagesByModeAndRule (mode: ModesType, rule: RulesType, multiple: boolean): Promise<CQMessageList> {
+    const cache = await this.loadCurrentStages()
+    const idxs = cache[mode].reduce((arr: number[], it: Rule, idx: number) => it.rule.key === rule ? [...arr, idx] : arr, [])
+    let msg: CQMessageList = []
+    if (idxs.length > 0) {
+      msg = flatten(await Promise.all(idxs.filter((_, index) => multiple || index === 0).map((idx: number) => this.getCurrentStage(idx))))
+    } else {
+      msg = [`最近没有${ModeTranslate[mode]}${RuleTranslate[rule]}~`]
+    }
     return msg
   }
   private getCanvas (width: number, height: number): [Canvas, CanvasRenderingContext2D] {
@@ -699,10 +746,11 @@ export class Splatoon2 extends BaseBotModule {
   }
   help (e: BotMessageEvent) {
     if (e.messageType === BotMessageType.Group) {
-      return `当前地图: @bot 图
-下张地图: @bot 下张图
-打工图: @bot 打工
-随机武器: .随机武器 (无需@)`
+      return `当前地图: @bot 图 / .图 (无需@)
+下张地图: @bot 下张图 / .下[下下.../n]图
+打工图: @bot 打工 / .工图
+查模式: .<单/组>排<区域/塔/蛤蜊/鱼>[们]
+随机武器: .随机武器`
     }
     return ''
   }
