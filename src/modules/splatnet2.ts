@@ -12,6 +12,7 @@ import httpsProxyAgent from 'https-proxy-agent'
 
 const ProxyPool = process.env.PROXY_POOL
 const ErrStorNotFound = '没有找到你的登录状态, 请私聊 "乌贼登录" 后再使用'
+const RenewRetry = 5
 let DayLimit = 20
 
 interface UserSession {
@@ -231,7 +232,8 @@ export class Splatnet2 extends BaseBotModule {
       proxy: {
         host,
         port: parseInt(port)
-      }
+      },
+      timeout: 30 * 1000
     }
   }
   private is403 (e: any) {
@@ -270,14 +272,20 @@ export class Splatnet2 extends BaseBotModule {
     this.storage.set('register', this.registerToday)
   }
   private async renew(userId: number) {
-    await this.appReq.get(
-      'https://app.splatoon2.nintendo.net/home',
-      {
-        headers: this.getUserCookie(userId),
-        ...this.getProxyOpts()
+    for (let i = 1; i <= RenewRetry; i++) {
+      try {
+        await this.appReq.get(
+          'https://app.splatoon2.nintendo.net/home',
+          {
+            headers: this.getUserCookie(userId),
+            ...this.getProxyOpts()
+          }
+        )
+        this.updateLastUsed(userId)
+      } catch (e) {
+        console.warn('renew failed times:', i, e)
       }
-    )
-    this.updateLastUsed(userId)
+    }
   }
   private async getBattleUrl (userId: number, index: number = 0) {
     const list = await this.getBattleList(userId)
