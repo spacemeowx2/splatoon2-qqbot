@@ -25,6 +25,7 @@
     "axios": "^0.18.0",
     "cq-websocket": "^1.8.1",
     "fs-extra": "^7.0.1",
+    "https-proxy-agent": "^2.2.2",
     "lodash": "^4.17.15",
     "moment": "^2.22.2",
     "nodemon": "^1.18.4",

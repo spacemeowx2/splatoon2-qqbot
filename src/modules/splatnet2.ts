@@ -8,7 +8,9 @@ import { BotStorage } from '../storage'
 import uuid from 'uuid'
 import moment from 'moment'
 import { sleep } from '../utils/helpers'
+import httpsProxyAgent from 'https-proxy-agent'
 
+const ProxyPool = process.env.PROXY_POOL
 const ErrStorNotFound = '没有找到你的登录状态, 请私聊 "乌贼登录" 后再使用'
 let DayLimit = 20
 
@@ -218,6 +220,20 @@ export class Splatnet2 extends BaseBotModule {
     }
     renew()
   }
+  private getProxyOpts () {
+    if (!ProxyPool) {
+      return {}
+    }
+    const [host, port] = ProxyPool.split(':')
+    const agent = new httpsProxyAgent(`http://${ProxyPool}`)
+    return {
+      httpsAgent: agent,
+      proxy: {
+        host,
+        port: parseInt(port)
+      }
+    }
+  }
   private is403 (e: any) {
     if (e.response) {
       const err = e as AxiosError
@@ -254,7 +270,13 @@ export class Splatnet2 extends BaseBotModule {
     this.storage.set('register', this.registerToday)
   }
   private async renew(userId: number) {
-    await this.appReq.get('https://app.splatoon2.nintendo.net/home', { headers: this.getUserCookie(userId) })
+    await this.appReq.get(
+      'https://app.splatoon2.nintendo.net/home',
+      {
+        headers: this.getUserCookie(userId),
+        ...this.getProxyOpts()
+      }
+    )
     this.updateLastUsed(userId)
   }
   private async getBattleUrl (userId: number, index: number = 0) {
