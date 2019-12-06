@@ -4,7 +4,9 @@ import { parse } from 'url'
 import { CQCode, cql, cqCode } from '../../utils/cqcode'
 import { RoomLastInfo, RoomStatus, RoomLivingInfo, SiteMonitor, RoomInfo, roomCmp, roomUniqueKey, RoomInfoWithGroups } from './types'
 import { BilibiliMonitor } from './bilibili'
+import { DouyuMonitor } from './douyu'
 import { LiveNotificationStorage } from './storage'
+import { HuyaMonitor } from './huya'
 
 const MonitorInterval = 5 * 60 * 1000 // 5mins
 const GlobalTimeout = 10 * 1000 // 10s
@@ -71,7 +73,7 @@ class RoomMonitor implements RoomLastInfo {
   }
 }
 class LiveMonitor {
-  static Monitors: SiteMonitor[] = [new BilibiliMonitor()]
+  static Monitors: SiteMonitor[] = [new BilibiliMonitor(), new DouyuMonitor(), new HuyaMonitor()]
   static SupportedHost: string[] = LiveMonitor.Monitors.map(i => i.getHost()).reduce((l, i) => [...l, ...i], [])
 
   static findMonitor(host: string) {
@@ -369,7 +371,7 @@ ${room.url}`)
 直播提醒 添加 [直播间地址]  将该直播间添加到提醒列表
 直播提醒 删除 [直播间地址]  将该直播间从提醒列表移除
 直播提醒 配置 [直播间地址] [+选项] [-选项] 显示, 设置该群的直播提醒配置
-* 目前仅支持b站直播
+* 目前仅支持b站, 斗鱼, 虎牙直播
 
 普通指令:
 直播提醒 状态           显示该群监控列表的当前状态`
