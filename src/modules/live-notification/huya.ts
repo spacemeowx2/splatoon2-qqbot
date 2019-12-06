@@ -47,7 +47,6 @@ export class HuyaMonitor implements SiteMonitor {
     const title = extract(/var liveRoomName = '(.*?)'/, data, 1)
     const user = extract(/var ANTHOR_NICK = '(.*?)'/, data, 1)
 
-    console.log(data)
     if (!user || (isLiving && !title)) {
       throw new Error('Failed to parse huya room')
     }
