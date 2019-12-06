@@ -11,7 +11,7 @@ function extract(re: RegExp, str: string, index: number) {
 
 export class HuyaMonitor implements SiteMonitor {
   getHost() {
-    return ['huya.com']
+    return ['www.huya.com', 'm.huya.com']
   }
   async parseRoom(u: UrlWithStringQuery) {
     if (u.host === undefined) {
@@ -38,24 +38,27 @@ export class HuyaMonitor implements SiteMonitor {
   async getRoomInfo(room: RoomInfo): Promise<[boolean, RoomLivingInfo]> {
     const { data } = await axios.get<string>(`https://m.huya.com/${room.roomId}`, {
       headers: {
-        'User-Agent': 'qqbot',
+        'User-Agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 11_0 like Mac OS X) AppleWebKit/604.1.38 (KHTML, like Gecko) Version/11.0 Mobile/15A372 Safari/604.1',
         'Accept': 'text/html'
       }
     })
 
+    const isLiving = data.includes('ISLIVE = true')
     const title = extract(/var liveRoomName = '(.*?)'/, data, 1)
     const user = extract(/var ANTHOR_NICK = '(.*?)'/, data, 1)
-    if (!title || !user) {
+
+    console.log(data)
+    if (!user || (isLiving && !title)) {
       throw new Error('Failed to parse huya room')
     }
-    return [data.includes('ISLIVE = true'), {
-      title: title,
+    return [isLiving, {
+      title: title || '未开播',
       user: user,
       avatar: ""
     }]
   }
 
   buildUrl(roomId: string) {
-    return `https://www.douyu.com/${roomId}`
+    return `https://www.huya.com/${roomId}`
   }
 }
