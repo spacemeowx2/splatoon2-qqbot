@@ -15,6 +15,7 @@ import { HorseRacing } from './modules/horse-racing'
 import { GifReverse } from './modules/gif-reverse'
 import { ThankRedpack } from './modules/thank-redpack'
 import { Splatnet2 } from './modules/splatnet2'
+import { SeTu } from './modules/setu'
 
 async function main () {
   const access_token = process.env.CQ_ACCESS_TOKEN
@@ -55,6 +56,7 @@ async function main () {
   bot.registerModule(new Priva())
   bot.registerModule(new LiveNotification())
   bot.registerModule(new GifReverse())
+  bot.registerModule(new SeTu())
   if (process.env.TULING123_TOKEN) {
     bot.registerModule(AIChat(ChatProvider.Tuling123, {
       apiKey: process.env.TULING123_TOKEN
