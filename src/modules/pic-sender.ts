@@ -19,7 +19,7 @@ export class PictureSender extends BaseBotModule {
     message = cqGetString(message).trim()
     if (re.test(message)) {
       console.log(`send pic ${message}`)
-      return cqStringify(await getImage(message))
+      return cqStringify([await getImage(message)])
     }
   }
   help () {
