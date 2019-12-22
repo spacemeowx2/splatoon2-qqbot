@@ -43,7 +43,7 @@ async function main () {
   bot.blackList = JSON.parse(process.env.TSBOT_BLACKLIST || '[]')
   bot.isPro = true
   bot.registerModule(adminControl)
-  bot.registerModule(new SeTu())
+  // bot.registerModule(new SeTu())
   bot.registerModule(new Splatnet2())
   // bot.registerModule(new HorseRacing())
   bot.registerModule(thankRedpack)
