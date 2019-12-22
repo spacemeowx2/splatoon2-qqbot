@@ -1,5 +1,6 @@
 import { BaseBotModule, BotMessageEvent, BotModuleInitContext } from '../interface'
-import { cqGetString } from '../utils/cqcode'
+import { cqGetString, cqStringify } from '../utils/cqcode'
+import { getImage } from '../utils/getImage'
 
 export class PictureSender extends BaseBotModule {
   id = 'pic-sender'
@@ -18,7 +19,7 @@ export class PictureSender extends BaseBotModule {
     message = cqGetString(message).trim()
     if (re.test(message)) {
       console.log(`send pic ${message}`)
-      return `[CQ:image,file=${message}]`
+      return cqStringify(getImage(message))
     }
   }
   help () {

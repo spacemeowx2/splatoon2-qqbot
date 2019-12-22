@@ -1,6 +1,7 @@
 import axios from 'axios'
 import { BaseBotModule, BotMessageEvent, BotModuleInitContext } from '../interface'
 import { cqStringify, cqCode } from '../utils/cqcode'
+import { getImage } from '../utils/getImage'
 
 interface Response {
   code: number
@@ -25,9 +26,8 @@ export class SeTu extends BaseBotModule {
     if (h >= 0 && h <= 6) {
       try {
         const setu = await axios.get<Response>('https://api.lolicon.app/setu/?size1200=true')
-        return cqStringify([cqCode('image', {
-          file: setu.data.data[0].url
-        })])
+
+        return cqStringify([await getImage(setu.data.data[0].url)])
       } catch (e) {
         return 'Error: ' + e.toString()
       }
