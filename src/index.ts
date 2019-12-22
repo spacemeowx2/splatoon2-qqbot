@@ -43,6 +43,7 @@ async function main () {
   bot.blackList = JSON.parse(process.env.TSBOT_BLACKLIST || '[]')
   bot.isPro = true
   bot.registerModule(adminControl)
+  bot.registerModule(new SeTu())
   bot.registerModule(new Splatnet2())
   // bot.registerModule(new HorseRacing())
   bot.registerModule(thankRedpack)
@@ -56,7 +57,6 @@ async function main () {
   bot.registerModule(new Priva())
   bot.registerModule(new LiveNotification())
   bot.registerModule(new GifReverse())
-  bot.registerModule(new SeTu())
   if (process.env.TULING123_TOKEN) {
     bot.registerModule(AIChat(ChatProvider.Tuling123, {
       apiKey: process.env.TULING123_TOKEN
