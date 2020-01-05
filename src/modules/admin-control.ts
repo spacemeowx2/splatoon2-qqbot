@@ -21,6 +21,7 @@ export class AdminControl extends BaseBotModule {
   adminQQ: number[] = []
   requestMap: Map<number, PendingRequest> = new Map()
   enableStorage!: BotStorage<Record<number, boolean | undefined>>
+  allowAllGroup = false
 
   init (ctx: BotModuleInitContext) {
     super.init(ctx)
@@ -39,29 +40,38 @@ export class AdminControl extends BaseBotModule {
     console.log('request.group.invite', e)
     let { flag, subType, userId, groupId, selfId } = e
 
-    await this.generateRequest({
-      onApprove: () => {
-        this.bot.send('set_group_add_request', {
-          flag,
-          sub_type: subType,
-          approve: true
-        })
-      },
-      onReject: (reason: string) => {
-        this.bot.send('set_group_add_request', {
-          flag,
-          sub_type: subType,
-          approve: false,
-          reason
-        })
-      },
-      getDetail: async () => {
-        return JSON.stringify(await this.bot.send('_get_group_info', {
-          group_id: groupId
-        }), null, 2)
-      },
-      raw: JSON.stringify(e)
-    }, `QQ: ${userId} 邀请 ${selfId} 进群 ${groupId}`)
+    if (this.allowAllGroup) {
+      await this.bot.send('set_group_add_request', {
+        flag,
+        sub_type: subType,
+        approve: true
+      })
+      await this.sendToAdmin(`QQ: ${userId} 邀请 ${selfId} 进群 ${groupId}, 已经自动同意`)
+    } else {
+      await this.generateRequest({
+        onApprove: () => {
+          this.bot.send('set_group_add_request', {
+            flag,
+            sub_type: subType,
+            approve: true
+          })
+        },
+        onReject: (reason: string) => {
+          this.bot.send('set_group_add_request', {
+            flag,
+            sub_type: subType,
+            approve: false,
+            reason
+          })
+        },
+        getDetail: async () => {
+          return JSON.stringify(await this.bot.send('_get_group_info', {
+            group_id: groupId
+          }), null, 2)
+        },
+        raw: JSON.stringify(e)
+      }, `QQ: ${userId} 邀请 ${selfId} 进群 ${groupId}`)
+    }
   }
   onAdmin (e: BotMessageEvent) {
     let { message } = e

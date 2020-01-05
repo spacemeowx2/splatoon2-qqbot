@@ -38,6 +38,9 @@ async function main () {
     adminControl.adminQQ.push(parseInt(process.env.TSBOT_ADMIN))
     thankRedpack.notifyQQ.push(parseInt(process.env.TSBOT_ADMIN))
   }
+  if (process.env.ALLOW_ALL_GROUP) {
+    adminControl.allowAllGroup = true
+  }
   const bot = new TSBot(opt)
 
   bot.blackList = JSON.parse(process.env.TSBOT_BLACKLIST || '[]')
