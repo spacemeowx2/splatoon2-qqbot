@@ -46,7 +46,7 @@ export class AdminControl extends BaseBotModule {
         sub_type: subType,
         approve: true
       })
-      await this.sendToAdmin(`QQ: ${userId} 邀请 ${selfId} 进群 ${groupId}, 已经自动同意`)
+      // await this.sendToAdmin(`QQ: ${userId} 邀请 ${selfId} 进群 ${groupId}, 已经自动同意`)
     } else {
       await this.generateRequest({
         onApprove: () => {
