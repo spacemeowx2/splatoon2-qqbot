@@ -47,7 +47,7 @@ async function main () {
   bot.isPro = true
   bot.registerModule(adminControl)
   bot.registerModule(new SeTu())
-  bot.registerModule(new Splatnet2())
+  // bot.registerModule(new Splatnet2())
   // bot.registerModule(new HorseRacing())
   bot.registerModule(thankRedpack)
   bot.registerModule(new PersonalData())
