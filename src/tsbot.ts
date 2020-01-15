@@ -3,6 +3,7 @@ import { BotModule, BotModuleInitContext, MessageListener, MessageFilter, Reques
 import { BotStorageService } from './storage'
 import { BotFileService } from './file'
 import { cqGetString } from './utils/cqcode'
+import { sify } from 'chinese-conv'
 export * from './interface'
 const DebugPrefix = 'debug '
 const IsDebug = !!process.env.BOT_DEBUG
@@ -50,7 +51,7 @@ export class TSBotEventBus {
   }
   startsWithFilter (str: string): MessageFilter {
     return (e) => {
-      if (e.message.startsWith(str)) {
+      if (sify(e.message).startsWith(str)) {
         e.message = e.message.substr(str.length)
         return true
       }

@@ -8,6 +8,7 @@ import { promisify } from 'util'
 import { assign, flatten, invert } from 'lodash'
 import { shuffle, randomIn } from '../utils/helpers'
 import { CQCode, cqStringify, CQMessageList } from '../utils/cqcode'
+import { sify } from 'chinese-conv'
 const stat = promisify(statAsync)
 const readFile = promisify(readFileAsync)
 const dataPath = path.resolve(__dirname, '..', '..', 'data')
@@ -186,7 +187,7 @@ export class Splatoon2 extends BaseBotModule {
     }
   }
   private async onStage (e: BotMessageEvent) {
-    const { message } = e
+    const message = sify(e.message)
     const atCode = e.groupId ? new CQCode('at', { qq: e.userId.toString() }) : ''
     if (message.includes('工')) {
       try {
@@ -242,7 +243,8 @@ export class Splatoon2 extends BaseBotModule {
     }
   }
   private async onRandom (e: BotMessageEvent) {
-    if (e.message.trim() === '随机武器') {
+    const message = sify(e.message)
+    if (message.trim() === '随机武器') {
       if (!e.groupId) {
         return '随机武器不支持私聊~'
       }

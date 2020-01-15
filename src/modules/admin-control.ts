@@ -81,7 +81,6 @@ export class AdminControl extends BaseBotModule {
     if (message.startsWith('同意')) {
       let id = parseInt(message.substring(2))
       let res = this.requestMap.get(id)
-      console.log('shit', id, res)
       if (res) {
         this.requestMap.delete(id)
         if (res.expireAt < Date.now()) {

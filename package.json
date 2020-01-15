@@ -23,6 +23,7 @@
     "@types/uuid": "^3.4.5",
     "@types/ws": "^6.0.1",
     "axios": "^0.18.0",
+    "chinese-conv": "^1.0.1",
     "cq-websocket": "^1.8.1",
     "fs-extra": "^7.0.1",
     "https-proxy-agent": "^2.2.2",
