@@ -60,7 +60,7 @@ export class TSBotEventBus {
   }
   cmdFilter: MessageFilter = (e, abort) => {
     const atMe = `[CQ:at,qq=${e.selfId}]`
-    const cmdPrefix = '.'
+    const cmdPrefix = ['.', '。']
     if (e.messageType === BotMessageType.Private) {
       return true
     }
@@ -68,9 +68,11 @@ export class TSBotEventBus {
       e.message = e.message.replace(atMe, '')
       return true
     }
-    if (e.message.startsWith(cmdPrefix)) {
-      e.message = e.message.substr(cmdPrefix.length)
-      return true
+    for (const prefix of cmdPrefix) {
+      if (e.message.startsWith(prefix)) {
+        e.message = e.message.substr(prefix.length)
+        return true
+      }
     }
     return false
   }
