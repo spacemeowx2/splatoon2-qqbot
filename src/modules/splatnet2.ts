@@ -12,7 +12,7 @@ import httpsProxyAgent from 'https-proxy-agent'
 
 const ProxyPool = process.env.PROXY_POOL
 const ErrStorNotFound = '没有找到你的登录状态, 请私聊 "乌贼登录" 后再使用'
-const RenewRetry = 5
+const RenewRetry = 3
 let DayLimit = 20
 
 interface UserSession {
@@ -284,6 +284,9 @@ export class Splatnet2 extends BaseBotModule {
         this.updateLastUsed(userId)
       } catch (e) {
         console.warn('renew failed times:', i, e)
+        if (i === RenewRetry) {
+          this.checkErr(userId, e)
+        }
       }
     }
   }
@@ -528,7 +531,12 @@ export class Splatnet2 extends BaseBotModule {
         const url = await this.getBattleUrl(e.userId, idx - 1)
         this.updateLastCall(userId)
         console.log(`battle(${idx}) url ${userId} ${url}`)
-        return cqStringify([new CQCode('at', { qq: userId.toString() }), new CQCode('image', { file: url })])
+        const image = await axios.get<ArrayBuffer>(url, {
+          responseType: 'arraybuffer',
+          timeout: 15000
+        })
+        const buf = Buffer.from(new Uint8Array(image.data))
+        return cqStringify([new CQCode('at', { qq: userId.toString() }), new CQCode('image', { file: `base64://${buf.toString('base64')}` })])
       } catch (e) {
         console.warn(e)
         this.checkErr(userId, e)
