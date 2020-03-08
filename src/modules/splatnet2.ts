@@ -548,7 +548,7 @@ export class Splatnet2 extends BaseBotModule {
     if (msg === '乌贼退出登陆') {
       return '你要输入的是不是 "乌贼退出登录" ?'
     }
-    if (msg === process.env.SECRET_SN2 || '乌贼登录') {
+    if (msg === (process.env.SECRET_SN2 || '乌贼登录')) {
       if (!this.checkRegister()) {
         return `今日注册用户已达限制: ${this.registerToday.times}, 请明天0点再来`
       }
