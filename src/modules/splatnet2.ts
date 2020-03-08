@@ -245,12 +245,12 @@ export class Splatnet2 extends BaseBotModule {
   }
   private checkErr (userId: number, e: any) {
     if (this.is403(e)) {
-      // console.warn(`user ${userId} got 403. delete iksm`)
-      // const id = this.renewList.indexOf(userId)
-      // if (id === -1) return
-      // this.userStorage.del(`qq${userId}`)
-      // this.renewList.splice(id, 1)
-      // this.storage.set('list', this.renewList)
+      console.warn(`user ${userId} got 403. delete iksm`)
+      const id = this.renewList.indexOf(userId)
+      if (id === -1) return
+      this.userStorage.del(`qq${userId}`)
+      this.renewList.splice(id, 1)
+      this.storage.set('list', this.renewList)
       // this.bot.sendPrivateMessage(userId, `QQ用户 ${userId}: 您的乌贼登录状态已经失效, 要使用战绩功能请重新登录`)
     }
   }
@@ -548,7 +548,7 @@ export class Splatnet2 extends BaseBotModule {
     if (msg === '乌贼退出登陆') {
       return '你要输入的是不是 "乌贼退出登录" ?'
     }
-    if (msg === '乌贼登录') {
+    if (msg === process.env.SECRET_SN2 || '乌贼登录') {
       if (!this.checkRegister()) {
         return `今日注册用户已达限制: ${this.registerToday.times}, 请明天0点再来`
       }
