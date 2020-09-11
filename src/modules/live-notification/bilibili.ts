@@ -2,13 +2,19 @@ import moment from 'moment'
 import axios from 'axios'
 import { SiteMonitor, UrlWithStringQuery, RoomInfo, RoomLivingInfo } from './types'
 
-interface BilibiliAPIResponse {
+interface RoomInfoResponse {
   data: {
     title: string
     live_status: number
-    uname: string
     live_time: string
-    face: string
+  }
+}
+interface AnchorResponse {
+  data: {
+    info: {
+      uname: string
+      face: string
+    }
   }
 }
 export class BilibiliMonitor implements SiteMonitor {
@@ -39,18 +45,22 @@ export class BilibiliMonitor implements SiteMonitor {
   }
   async getRoomInfo (room: RoomInfo): Promise<[boolean, RoomLivingInfo]> {
     // for keyframe: `https://api.live.bilibili.com/room/v1/Room/get_info?room_id=${room.roomId}`
-    const { data: { data } } = await axios.get<BilibiliAPIResponse>(`https://api.live.bilibili.com/room/v1/RoomStatic/get_room_static_info?room_id=${room.roomId}`, {
+    const { data: { data: { title, live_status, live_time } } } = await axios.get<RoomInfoResponse>(`https://api.live.bilibili.com/room/v1/Room/get_info?room_id=${room.roomId}`, {
       headers: {
         'User-Agent': 'splatoon2-qqbot',
-        'Accept': 'text/html'
+      }
+    })
+    const { data: { data: { info: { uname, face } } }} = await axios.get<AnchorResponse>(`https://api.live.bilibili.com/live_user/v1/UserInfo/get_anchor_in_room?roomid=${room.roomId}`, {
+      headers: {
+        'User-Agent': 'splatoon2-qqbot',
       }
     })
 
-    return [data.live_status === 1, {
-      title: data.title,
-      user: data.uname,
-      startTime: moment(`${data.live_time} +8`, 'YYYY-MM-DD HH:mm:ss Z').unix(),
-      avatar: data.face
+    return [live_status === 1, {
+      title: title,
+      user: uname,
+      startTime: moment(`${live_time} +8`, 'YYYY-MM-DD HH:mm:ss Z').unix(),
+      avatar: face
     }]
   }
   buildUrl(roomId: string) {
