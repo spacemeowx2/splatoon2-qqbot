@@ -1,20 +1,10 @@
 version: "2"
 
 services:
-  priva:
-    build: ./deps/splatoon-privas
-    volumes:
-      - "./deps/splatoon-privas:/code"
-    command: python /code/src/start_rpc.py
-    network_mode: host
-    ports:
-      - 4242
-  dev:
+  database:
     build: .
     volumes:
       - ".:/code"
-    depends_on:
-      - priva
     network_mode: host
     command: npm run dev
     environment:

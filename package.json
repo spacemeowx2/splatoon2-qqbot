@@ -7,6 +7,7 @@
     "dev": "nodemon -L",
     "build": "tsc -p .",
     "prod": "ts-node ./src/index.ts",
+    "watch": "tsc -p . -w",
     "fetch-splatoon2": "ts-node ./scripts/fetch-splatoon2.ts",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
@@ -19,23 +20,25 @@
   "dependencies": {
     "@types/fs-extra": "^5.0.5",
     "@types/lodash": "^4.14.136",
+    "@types/lru-cache": "^5.1.0",
     "@types/node": "^10.10.3",
     "@types/uuid": "^3.4.5",
     "@types/ws": "^6.0.1",
     "axios": "^0.18.0",
+    "canvas": "^2.6.1",
     "chinese-conv": "^1.0.1",
     "cq-websocket": "^1.8.1",
     "fs-extra": "^7.0.1",
     "https-proxy-agent": "^2.2.2",
+    "koishi": "^2.5.0",
+    "koishi-adapter-cqhttp": "^1.0.8",
+    "koishi-plugin-common": "^3.0.3",
+    "koishi-plugin-mysql": "^2.1.0",
     "lodash": "^4.17.15",
     "moment": "^2.22.2",
     "nodemon": "^1.18.4",
     "ts-node": "^7.0.1",
     "typescript": "^3.0.3",
     "uuid": "^3.3.2"
-  },
-  "devDependencies": {
-    "canvas": "2.4.1",
-    "zerorpc": "^0.9.8"
   }
 }
