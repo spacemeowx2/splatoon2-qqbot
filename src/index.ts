@@ -3,11 +3,8 @@ import { Splatoon2 } from './modules/splatoon2'
 import { TSBot } from './tsbot'
 import { AdminControl } from './modules/admin-control'
 import { Dice } from './modules/dice'
-import { LiveNotification } from './modules/live-notification'
 import { AIChat, ChatProvider } from './modules/aichat'
-import { Repeater } from './modules/repeater'
 import { DingGG } from './modules/dgg'
-import { Priva } from './modules/priva'
 import { PictureSender } from './modules/pic-sender'
 import { AtAll } from './modules/at-all'
 import { PersonalData } from './modules/personal-data'
@@ -15,9 +12,8 @@ import { HorseRacing } from './modules/horse-racing'
 import { GifReverse } from './modules/gif-reverse'
 import { ThankRedpack } from './modules/thank-redpack'
 import { Splatnet2 } from './modules/splatnet2'
-import { SeTu } from './modules/setu'
 
-async function main () {
+async function main() {
   const access_token = process.env.CQ_ACCESS_TOKEN
   if (!access_token) {
     console.warn('WARNING: no access_token is set, will use undefined')
@@ -46,7 +42,7 @@ async function main () {
   bot.blackList = JSON.parse(process.env.TSBOT_BLACKLIST || '[]')
   bot.isPro = true
   bot.registerModule(adminControl)
-  bot.registerModule(new SeTu())
+  // bot.registerModule(new SeTu())
   bot.registerModule(new Splatnet2())
   // bot.registerModule(new HorseRacing())
   bot.registerModule(thankRedpack)
@@ -54,11 +50,11 @@ async function main () {
   bot.registerModule(new AtAll())
   bot.registerModule(new PictureSender())
   bot.registerModule(new Dice())
-  bot.registerModule(new Repeater())
+  // bot.registerModule(new Repeater())
   bot.registerModule(new Splatoon2())
   bot.registerModule(new DingGG())
-  bot.registerModule(new Priva())
-  bot.registerModule(new LiveNotification())
+  // bot.registerModule(new Priva())
+  // bot.registerModule(new LiveNotification())
   bot.registerModule(new GifReverse())
   if (process.env.TULING123_TOKEN) {
     bot.registerModule(AIChat(ChatProvider.Tuling123, {
